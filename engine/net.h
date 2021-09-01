@@ -102,7 +102,7 @@ enum
 	NS_SVLAN,	// LAN udp port for Linux. See NET_OpenSockets for info.
 #endif
 	MAX_SOCKETS
-}ESocketIndex_t;
+};
 
 typedef struct netpacket_s
 {

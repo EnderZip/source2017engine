@@ -17,6 +17,8 @@
 #include "xbox/xbox_console.h"
 #endif
 
+#include "curl/curl.h"
+
 // memdbgon must be the last include file in a .cpp file!!!
 #include "tier0/memdbgon.h"
 
@@ -33,6 +35,27 @@ bool con_debuglogmapprefixed = false;
 CThreadFastMutex g_AsyncNotifyTextMutex;
 
 static ConVar con_timestamp( "con_timestamp", "0", 0, "Prefix console.log entries with timestamps" );
+
+// Called when curl receives data from the server
+static size_t rcvData(void* ptr, size_t size, size_t nmemb, void* userdata)
+{
+	Msg((char*)ptr); // up to 989 characters each time
+	return size * nmemb;
+}
+
+//#ifdef TEST_LIBCURL
+void PrintPage()
+{
+	CURL* curl;
+	curl = curl_easy_init();
+	curl_easy_setopt(curl, CURLOPT_URL, "google.com");
+	curl_easy_setopt(curl, CURLOPT_WRITEFUNCTION, rcvData);
+	curl_easy_perform(curl);
+	curl_easy_cleanup(curl);
+}
+
+ConCommand print_page("print_page", PrintPage);
+//#endif
 
 // In order to avoid excessive opening and closing of the console log file
 // we wrap it in an object and keep the handle open. This is necessary

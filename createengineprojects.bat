@@ -1,2 +1,2 @@
-devtools\bin\vpc.exe /hl2mp +everything +engine /mksln everything.sln
+devtools\bin\vpc.exe /hl2mp /2013 +everything +engine /mksln everything.sln
 pause
