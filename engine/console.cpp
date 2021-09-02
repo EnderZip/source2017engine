@@ -43,10 +43,11 @@ static size_t rcvData(void* ptr, size_t size, size_t nmemb, void* userdata)
 	return size * nmemb;
 }
 
-//#ifdef TEST_LIBCURL
+#ifdef TEST_LIBCURL
 void PrintPage()
 {
 	CURL* curl;
+	
 	curl = curl_easy_init();
 	curl_easy_setopt(curl, CURLOPT_URL, "google.com");
 	curl_easy_setopt(curl, CURLOPT_WRITEFUNCTION, rcvData);
@@ -55,7 +56,7 @@ void PrintPage()
 }
 
 ConCommand print_page("print_page", PrintPage);
-//#endif
+#endif
 
 // In order to avoid excessive opening and closing of the console log file
 // we wrap it in an object and keep the handle open. This is necessary
@@ -1310,11 +1311,11 @@ void CConPanel::PaintBackground()
 	{
 		if ( cl.m_NetChannel->IsLoopback() )
 		{
-			Q_snprintf(ver, sizeof( ver ), "Map '%s'", cl.m_szLevelName );
+			Q_snprintf(ver, sizeof( ver ), "Map '%s'", cl.m_szLevelFileName);
 		}
 		else
 		{
-			Q_snprintf(ver, sizeof( ver ), "Server '%s' Map '%s'", cl.m_NetChannel->GetRemoteAddress().ToString(), cl.m_szLevelName );
+			Q_snprintf(ver, sizeof( ver ), "Server '%s' Map '%s'", cl.m_NetChannel->GetRemoteAddress().ToString(), cl.m_szLevelFileName);
 		}
 		wchar_t wUnicode[ 200 ];
 		g_pVGuiLocalize->ConvertANSIToUnicode( ver, wUnicode, sizeof( wUnicode ) );

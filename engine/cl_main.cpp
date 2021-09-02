@@ -856,7 +856,7 @@ void CL_Connect( const char *address, const char *pszSourceTag )
 	// connection.  Use the opportunity to flush anything before starting a new connection.
 	UpdateMaterialSystemConfig();
 
-	cl.Connect( address );
+	cl.Connect( address, pszSourceTag );
 
 	// Reset error conditions
 	gfExtendedError = false;

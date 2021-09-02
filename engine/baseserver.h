@@ -22,7 +22,7 @@
 class CNetworkStringTableContainer;
 class PackedEntity;
 class ServerClass;
-class INetworkStringTable;	
+class INetworkStringTable;
 
 enum server_state_t
 {
@@ -51,7 +51,7 @@ typedef struct
 } challenge_t;
 
 
-class CBaseServer  : public IServer
+class CBaseServer : public IServer
 {
 public:
 	CBaseServer();
@@ -61,137 +61,137 @@ public:
 
 public: // IServer implementation
 
-	virtual int		GetNumClients( void ) const; // returns current number of clients
-	virtual int		GetNumProxies( void ) const; // returns number of attached HLTV proxies
+	virtual int		GetNumClients(void) const; // returns current number of clients
+	virtual int		GetNumProxies(void) const; // returns number of attached HLTV proxies
 	virtual int		GetNumFakeClients() const; // returns number of fake clients/bots
-	virtual int		GetMaxClients( void ) const { return m_nMaxclients; } // returns current client limit
-	virtual int		GetUDPPort( void ) const { return NET_GetUDPPort( m_Socket );	}
-	virtual IClient	*GetClient( int index ) { return m_Clients[index]; } // returns interface to client 
+	virtual int		GetMaxClients(void) const { return m_nMaxclients; } // returns current client limit
+	virtual int		GetUDPPort(void) const { return NET_GetUDPPort(m_Socket); }
+	virtual IClient* GetClient(int index) { return m_Clients[index]; } // returns interface to client 
 	virtual int		GetClientCount() const { return m_Clients.Count(); } // for iteration;
-	virtual float	GetTime( void ) const;
-	virtual int		GetTick( void ) const { return m_nTickCount; }
-	virtual float	GetTickInterval( void ) const { return m_flTickInterval; }
-	virtual const char *GetName( void ) const;
-	virtual const char *GetMapName( void ) const { return m_szMapname; }
-	virtual int		GetSpawnCount( void ) const { return m_nSpawnCount; }
-	virtual int		GetNumClasses( void ) const { return serverclasses; }
-	virtual int		GetClassBits( void ) const { return serverclassbits; }
-	virtual void	GetNetStats( float &avgIn, float &avgOut );
+	virtual float	GetTime(void) const;
+	virtual int		GetTick(void) const { return m_nTickCount; }
+	virtual float	GetTickInterval(void) const { return m_flTickInterval; }
+	virtual const char* GetName(void) const;
+	virtual const char* GetMapName(void) const { return m_szMapname; }
+	virtual int		GetSpawnCount(void) const { return m_nSpawnCount; }
+	virtual int		GetNumClasses(void) const { return serverclasses; }
+	virtual int		GetClassBits(void) const { return serverclassbits; }
+	virtual void	GetNetStats(float& avgIn, float& avgOut);
 	virtual int		GetNumPlayers();
-	virtual	bool	GetPlayerInfo( int nClientIndex, player_info_t *pinfo );
-	virtual float	GetCPUUsage( void ) { return m_fCPUPercent; }
-		
-	virtual bool	IsActive( void ) const { return m_State >= ss_active; }	
-	virtual bool	IsLoading( void ) const { return m_State == ss_loading; }
-	virtual bool	IsDedicated( void ) const { return m_bIsDedicated; }
-	virtual bool	IsPaused( void ) const { return m_State == ss_paused; }
-	virtual bool	IsMultiplayer( void ) const { return m_nMaxclients > 1; }
-	virtual bool	IsPausable( void ) const { return false; }
-	virtual bool	IsHLTV( void ) const { return false; }
-	virtual bool	IsReplay( void ) const { return false; }
+	virtual	bool	GetPlayerInfo(int nClientIndex, player_info_t* pinfo);
+	virtual float	GetCPUUsage(void) { return m_fCPUPercent; }
 
-	virtual void	BroadcastMessage( INetMessage &msg, bool onlyActive = false, bool reliable = false );
-	virtual void	BroadcastMessage( INetMessage &msg, IRecipientFilter &filter );
-	virtual void	BroadcastPrintf ( PRINTF_FORMAT_STRING const char *fmt, ...) FMTFUNCTION( 2, 3 );
+	virtual bool	IsActive(void) const { return m_State >= ss_active; }
+	virtual bool	IsLoading(void) const { return m_State == ss_loading; }
+	virtual bool	IsDedicated(void) const { return m_bIsDedicated; }
+	virtual bool	IsPaused(void) const { return m_State == ss_paused; }
+	virtual bool	IsMultiplayer(void) const { return m_nMaxclients > 1; }
+	virtual bool	IsPausable(void) const { return false; }
+	virtual bool	IsHLTV(void) const { return false; }
+	virtual bool	IsReplay(void) const { return false; }
 
-	virtual const char * GetPassword() const;
+	virtual void	BroadcastMessage(INetMessage& msg, bool onlyActive = false, bool reliable = false);
+	virtual void	BroadcastMessage(INetMessage& msg, IRecipientFilter& filter);
+	virtual void	BroadcastPrintf(PRINTF_FORMAT_STRING const char* fmt, ...) FMTFUNCTION(2, 3);
 
-	virtual void	SetMaxClients( int number );
+	virtual const char* GetPassword() const;
+
+	virtual void	SetMaxClients(int number);
 	virtual void	SetPaused(bool paused);
-	virtual void	SetPassword(const char *password);
+	virtual void	SetPassword(const char* password);
 
-	virtual void	DisconnectClient(IClient *client, const char *reason );
-	
-	virtual void	WriteDeltaEntities( CBaseClient *client, CClientFrame *to, CClientFrame *from,	bf_write &pBuf );
-	virtual void	WriteTempEntities( CBaseClient *client, CFrameSnapshot *to, CFrameSnapshot *from, bf_write &pBuf, int nMaxEnts );
-	
+	virtual void	DisconnectClient(IClient* client, const char* reason);
+
+	virtual void	WriteDeltaEntities(CBaseClient* client, CClientFrame* to, CClientFrame* from, bf_write& pBuf);
+	virtual void	WriteTempEntities(CBaseClient* client, CFrameSnapshot* to, CFrameSnapshot* from, bf_write& pBuf, int nMaxEnts);
+
 public: // IConnectionlessPacketHandler implementation
 
-	virtual bool	ProcessConnectionlessPacket( netpacket_t * packet );
+	virtual bool	ProcessConnectionlessPacket(netpacket_t* packet);
 
-	virtual void	Init( bool isDedicated );
-	virtual void	Clear( void );
-	virtual void	Shutdown( void );
-	virtual CBaseClient *CreateFakeClient( const char *name );
-	virtual void 	RemoveClientFromGame( CBaseClient *client ) {};
-	virtual void	SendClientMessages ( bool bSendSnapshots );
-	virtual void	FillServerInfo(SVC_ServerInfo &serverinfo);
-	virtual void	UserInfoChanged( int nClientIndex );
+	virtual void	Init(bool isDedicated);
+	virtual void	Clear(void);
+	virtual void	Shutdown(void);
+	virtual CBaseClient* CreateFakeClient(const char* name);
+	virtual void 	RemoveClientFromGame(CBaseClient* client) {};
+	virtual void	SendClientMessages(bool bSendSnapshots);
+	virtual void	FillServerInfo(SVC_ServerInfo& serverinfo);
+	virtual void	UserInfoChanged(int nClientIndex);
 
-	bool	GetClassBaseline( ServerClass *pClass, void const **pData, int *pDatalen );
-	void	RunFrame( void );
-	void	InactivateClients( void );
-	void	ReconnectClients( void );
-	void	CheckTimeouts (void);
+	bool	GetClassBaseline(ServerClass* pClass, void const** pData, int* pDatalen);
+	void	RunFrame(void);
+	void	InactivateClients(void);
+	void	ReconnectClients(void);
+	void	CheckTimeouts(void);
 	void	UpdateUserSettings(void);
 	void	SendPendingServerInfo(void);
 
-	const char	*CompressPackedEntity(ServerClass *pServerClass, const char *data, int &bits);
-	const char	*UncompressPackedEntity(PackedEntity *pPackedEntity, int &size);
+	const char* CompressPackedEntity(ServerClass* pServerClass, const char* data, int& bits);
+	const char* UncompressPackedEntity(PackedEntity* pPackedEntity, int& size);
 
-	INetworkStringTable *GetInstanceBaselineTable( void );
-	INetworkStringTable *GetLightStyleTable( void );
-	INetworkStringTable *GetUserInfoTable( void );
+	INetworkStringTable* GetInstanceBaselineTable(void);
+	INetworkStringTable* GetLightStyleTable(void);
+	INetworkStringTable* GetUserInfoTable(void);
 
-	virtual void	RejectConnection(const netadr_t &adr, int clientChallenge, const char *s );
+	virtual void	RejectConnection(const netadr_t& adr, int clientChallenge, const char* s);
 
-	float	GetFinalTickTime( void ) const;
+	float	GetFinalTickTime(void) const;
 
-	virtual bool CheckIPRestrictions( const netadr_t &adr, int nAuthProtocol );
+	virtual bool CheckIPRestrictions(const netadr_t& adr, int nAuthProtocol);
 
 	void	SetMasterServerRulesDirty();
-	void	SendQueryPortToClient( netadr_t &adr );
+	void	SendQueryPortToClient(netadr_t& adr);
 
-	void	RecalculateTags( void );
-	void	AddTag( const char *pszTag );
-	void	RemoveTag( const char *pszTag );
+	void	RecalculateTags(void);
+	void	AddTag(const char* pszTag);
+	void	RemoveTag(const char* pszTag);
 
-	int		GetNumConnections( ) { return m_nNumConnections; }
+	int		GetNumConnections() { return m_nNumConnections; }
 
-	void	SetReportNewFakeClients( bool bReportNewFakeClients ) { m_bReportNewFakeClients = bReportNewFakeClients; }
+	void	SetReportNewFakeClients(bool bReportNewFakeClients) { m_bReportNewFakeClients = bReportNewFakeClients; }
 
-	//void	SetPausedForced( bool bPaused, float flDuration = -1.f );
+	void	SetPausedForced(bool bPaused, float flDuration = -1.f);
 
 protected:
 
-	virtual IClient *ConnectClient ( netadr_t &adr, int protocol, int challenge, int clientChallenge, int authProtocol, 
-					    const char *name, const char *password, const char *hashedCDkey, int cdKeyLen );
-	
-	virtual CBaseClient *GetFreeClient( netadr_t &adr );
+	virtual IClient* ConnectClient(netadr_t& adr, int protocol, int challenge, int clientChallenge, int authProtocol,
+		const char* name, const char* password, const char* hashedCDkey, int cdKeyLen);
 
-	virtual CBaseClient *CreateNewClient( int slot ) { AssertMsg( 0, "CBaseServer::CreateNewClient() being called - must be implemented in derived class!" ); return NULL; }; // must be derived
+	virtual CBaseClient* GetFreeClient(netadr_t& adr);
 
-	
-	virtual bool	FinishCertificateCheck( netadr_t &adr, int nAuthProtocol, const char *szRawCertificate, int clientChallenge ) { return true; };
-	
-	virtual int		GetChallengeNr ( netadr_t &adr );
-	virtual int		GetChallengeType ( netadr_t &adr );
+	virtual CBaseClient* CreateNewClient(int slot) { AssertMsg(0, "CBaseServer::CreateNewClient() being called - must be implemented in derived class!"); return NULL; }; // must be derived
 
-	virtual bool	CheckProtocol( netadr_t &adr, int nProtocol, int clientChallenge );
-	virtual bool	CheckChallengeNr( netadr_t &adr, int nChallengeValue );
-	virtual bool	CheckChallengeType( CBaseClient *client, int nNewUserID, netadr_t & adr, int nAuthProtocol, const char *pchLogonCookie, int cbCookie, int clientChallenge );
-	virtual bool	CheckPassword( netadr_t &adr, const char *password, const char *name );
-	virtual bool	CheckIPConnectionReuse( netadr_t &adr );
 
-	virtual void	ReplyChallenge(netadr_t &adr, int clientChallenge);
-	virtual void	ReplyServerChallenge(netadr_t &adr);
+	virtual bool	FinishCertificateCheck(netadr_t& adr, int nAuthProtocol, const char* szRawCertificate, int clientChallenge) { return true; };
+
+	virtual int		GetChallengeNr(netadr_t& adr);
+	virtual int		GetChallengeType(netadr_t& adr);
+
+	virtual bool	CheckProtocol(netadr_t& adr, int nProtocol, int clientChallenge);
+	virtual bool	CheckChallengeNr(netadr_t& adr, int nChallengeValue);
+	virtual bool	CheckChallengeType(CBaseClient* client, int nNewUserID, netadr_t& adr, int nAuthProtocol, const char* pchLogonCookie, int cbCookie, int clientChallenge);
+	virtual bool	CheckPassword(netadr_t& adr, const char* password, const char* name);
+	virtual bool	CheckIPConnectionReuse(netadr_t& adr);
+
+	virtual void	ReplyChallenge(netadr_t& adr, int clientChallenge);
+	virtual void	ReplyServerChallenge(netadr_t& adr);
 
 	virtual void	CalculateCPUUsage();
 
 	// Keep the master server data updated.
 	virtual bool	ShouldUpdateMasterServer();
-	
+
 	void			CheckMasterServerRequestRestart();
 	void			UpdateMasterServer();
 	void			UpdateMasterServerRules();
 	virtual void	UpdateMasterServerPlayers() {}
 	void			ForwardPacketsFromMasterServerUpdater();
 
-	void SetRestartOnLevelChange(bool state)  { m_bRestartOnLevelChange = state; }
+	void SetRestartOnLevelChange(bool state) { m_bRestartOnLevelChange = state; }
 
-	bool RequireValidChallenge( netadr_t &adr );
-	bool ValidChallenge( netadr_t & adr, int challengeNr );
-	bool ValidInfoChallenge( netadr_t & adr, const char *nugget );
+	bool RequireValidChallenge(netadr_t& adr);
+	bool ValidChallenge(netadr_t& adr, int challengeNr);
+	bool ValidInfoChallenge(netadr_t& adr, const char* nugget);
 
 	// Data
 public:
@@ -206,15 +206,14 @@ public:
 	char			m_Password[32];		// server password
 
 	MD5Value_t		worldmapMD5;		// For detecting that client has a hacked local copy of map, the client will be dropped if this occurs.
-	MD5Value_t	m_nMapMD5;		// funny server map MD5
 
-	CNetworkStringTableContainer *m_StringTables;	// newtork string table container
+	CNetworkStringTableContainer* m_StringTables;	// newtork string table container
 
-	INetworkStringTable *m_pInstanceBaselineTable; 
-	INetworkStringTable *m_pLightStyleTable;
-	INetworkStringTable *m_pUserInfoTable;
-	INetworkStringTable *m_pServerStartupTable;
-	INetworkStringTable *m_pDownloadableFileTable;
+	INetworkStringTable* m_pInstanceBaselineTable;
+	INetworkStringTable* m_pLightStyleTable;
+	INetworkStringTable* m_pUserInfoTable;
+	INetworkStringTable* m_pServerStartupTable;
+	INetworkStringTable* m_pDownloadableFileTable;
 
 	// This will get set to NET_MAX_PAYLOAD if the server is MP.
 	bf_write			m_Signon;
@@ -241,7 +240,7 @@ protected:
 
 
 	CUtlVector<CBaseClient*>	m_Clients;		// array of up to [maxclients] client slots.
-	
+
 	bool		m_bIsDedicated;
 
 	uint32		m_CurrentRandomNonce;
@@ -253,7 +252,7 @@ protected:
 
 	// This is only used for Steam's master server updater to refer to this server uniquely.
 	bool		m_bRestartOnLevelChange;
-	
+
 	bool		m_bMasterServerRulesDirty;
 	double		m_flLastMasterServerUpdateTime;
 
@@ -262,6 +261,8 @@ protected:
 	bool		m_bReportNewFakeClients; // Whether or not newly created fake clients should be included in server browser totals
 	float		m_flPausedTimeEnd;
 };
+
+#define S2C_MAGICVERSION		0x5a4f4933 // Magic used in the S2C_CHALLNGE to detect version differences
 
 extern CThreadFastMutex g_svInstanceBaselineMutex;
 

@@ -729,7 +729,7 @@ void CHLTVServer::ConnectRelay(const char *address)
 	}
 
 	// connect to new server
-	m_ClientState.Connect( address );
+	m_ClientState.Connect(address, "tvrelay");
 }
 
 void CHLTVServer::StartRelay()
@@ -1678,6 +1678,8 @@ void CHLTVServer::Clear( void )
 	m_DeltaCache.Flush();
 	m_FrameCache.RemoveAll();
 }
+
+#define A2S_INFO				'T'	// generic server info request - this must match the Source engine
 
 bool CHLTVServer::ProcessConnectionlessPacket( netpacket_t * packet )
 {

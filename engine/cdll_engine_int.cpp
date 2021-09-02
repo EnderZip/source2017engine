@@ -1090,7 +1090,7 @@ char const *CEngineClient::GetLevelName( void )
 		return "";
 	}
 
-	return cl.m_szLevelName;
+	return cl.m_szLevelFileName;
 }
 
 int CEngineClient::GetLevelVersion( void )

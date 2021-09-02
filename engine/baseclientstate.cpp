@@ -1,11 +1,12 @@
-//===== Copyright © 1996-2005, Valve Corporation, All rights reserved. ======//
+//========= Copyright Valve Corporation, All rights reserved. ============//
 //
 // Purpose:  baseclientstate.cpp: implementation of the CBaseClientState class.
 //
-//===========================================================================//
+//===============================================================================
 
 #include "client_pch.h"
 #include "baseclientstate.h"
+#include "vstdlib/random.h"
 #include <inetchannel.h>
 #include <netmessages.h>
 #include <proto_oob.h>
@@ -25,7 +26,6 @@
 #include "cl_pluginhelpers.h"
 #include "vgui_askconnectpanel.h"
 #endif
-#include "Steam.h"
 #include "sv_steamauth.h"
 #include "tier0/icommandline.h"
 #include "tier0/vcrmode.h"
@@ -34,13 +34,22 @@
 #include "server.h"
 #include "steam/steam_api.h"
 #include "matchmaking.h"
+#include "sv_plugin.h"
+#include "sys_dll.h"
+#include "host.h"
+#if defined( REPLAY_ENABLED )
+#include "replay_internal.h"
+#include "replayserver.h"
+#endif
 
 // memdbgon must be the last include file in a .cpp file!!!
 #include "tier0/memdbgon.h"
 
+#ifdef ENABLE_RPT
 void CL_NotifyRPTOfDisconnect();
+#endif // ENABLE_RPT
 
-#if !defined( NO_STEAM )
+#if !defined( NO_STEAM ) 
 void UpdateNameFromSteamID(IConVar* pConVar, CSteamID* pSteamID)
 {
 #ifndef SWDS
@@ -62,30 +71,38 @@ void SetNameToSteamIDName(IConVar* pConVar)
 	}
 #endif // SWDS
 }
-#endif
+#endif // NO_STEAM
+
 
 void CL_NameCvarChanged(IConVar* pConVar, const char* pOldString, float flOldValue)
 {
-#if !defined( NO_STEAM )
+	ConVarRef var(pConVar);
+
 	static bool bPreventRent = false;
 	if (!bPreventRent)
 	{
 		bPreventRent = true;
+#if !defined( NO_STEAM )
 		SetNameToSteamIDName(pConVar);
+#endif
+		// Remove any evil characters (ex: zero width no-break space)
+		char pchName[MAX_PLAYER_NAME_LENGTH];
+		V_strcpy_safe(pchName, var.GetString());
+		Q_RemoveAllEvilCharacters(pchName);
+		pConVar->SetValue(pchName);
+
+		// store off the last known name, that isn't default, in the registry
+		// this is a transition step so it can be used to display in friends
+		if (0 != Q_stricmp(var.GetString(), var.GetDefault())
+			&& 0 != Q_stricmp(var.GetString(), "player"))
+		{
+			Sys_SetRegKeyValue("Software\\Valve\\Steam", "LastGameNameUsed", var.GetString());
+		}
+
 		bPreventRent = false;
 	}
-#endif
-
-	ConVarRef var(pConVar);
-
-	// store off the last known name, that isn't default, in the registry
-	// this is a transition step so it can be used to display in friends
-	if (0 != Q_stricmp(var.GetString(), var.GetDefault())
-		&& 0 != Q_stricmp(var.GetString(), "player"))
-	{
-		Sys_SetRegKeyValue("Software\\Valve\\Steam", "LastGameNameUsed", (char*)var.GetString());
-	}
 }
+
 
 
 
@@ -96,7 +113,7 @@ void askconnect_accept_f()
 	if (IsAskConnectPanelActive(szHostName, sizeof(szHostName)))
 	{
 		char szCommand[512];
-		V_snprintf(szCommand, sizeof(szCommand), "connect %s", szHostName);
+		V_snprintf(szCommand, sizeof(szCommand), "connect %s redirect", szHostName);
 		Cbuf_AddText(szCommand);
 		HideAskConnectPanel();
 	}
@@ -104,10 +121,62 @@ void askconnect_accept_f()
 ConCommand askconnect_accept("askconnect_accept", askconnect_accept_f, "Accept a redirect request by the server.", FCVAR_DONTRECORD);
 #endif
 
-ConVar	cl_resend("cl_resend", "6", 0, "Delay in seconds before the client will resend the 'connect' attempt", true, CL_MIN_RESEND_TIME, true, CL_MAX_RESEND_TIME);
+#ifndef SWDS
+extern IVEngineClient* engineClient;
+// ---------------------------------------------------------------------------------------- //
+static void SendClanTag(const char* pTag)
+{
+	KeyValues* kv = new KeyValues("ClanTagChanged");
+	kv->SetString("tag", pTag);
+	engineClient->ServerCmdKeyValues(kv);
+}
+#endif
+
+// ---------------------------------------------------------------------------------------- //
+void CL_ClanIdChanged(IConVar* pConVar, const char* pOldString, float flOldValue)
+{
+#ifndef SWDS
+	// Get the clan ID we're trying to select
+	ConVarRef var(pConVar);
+	uint32 newId = var.GetInt();
+	if (newId == 0)
+	{
+		// Default value, equates to no tag
+		SendClanTag("");
+		return;
+	}
+
+#if !defined( NO_STEAM )
+	// Make sure this player is actually part of the desired clan
+	ISteamFriends* pFriends = Steam3Client().SteamFriends();
+	if (pFriends)
+	{
+		int iGroupCount = pFriends->GetClanCount();
+		for (int k = 0; k < iGroupCount; ++k)
+		{
+			CSteamID clanID = pFriends->GetClanByIndex(k);
+			if (clanID.GetAccountID() == newId)
+			{
+				// valid clan, accept the change
+				CSteamID clanIDNew(newId, Steam3Client().SteamUtils()->GetConnectedUniverse(), k_EAccountTypeClan);
+				SendClanTag(pFriends->GetClanTag(clanIDNew));
+				return;
+			}
+		}
+	}
+#endif // NO_STEAM
+
+	// Couldn't validate the ID, so clear to the default (no tag)
+	var.SetValue(0);
+#endif // !SWDS
+}
+
+ConVar	cl_resend("cl_resend", "6", FCVAR_NONE, "Delay in seconds before the client will resend the 'connect' attempt", true, CL_MIN_RESEND_TIME, true, CL_MAX_RESEND_TIME);
 ConVar	cl_name("name", "unnamed", FCVAR_ARCHIVE | FCVAR_USERINFO | FCVAR_PRINTABLEONLY | FCVAR_SERVER_CAN_EXECUTE, "Current user name", CL_NameCvarChanged);
 ConVar	password("password", "", FCVAR_ARCHIVE | FCVAR_SERVER_CANNOT_QUERY | FCVAR_DONTRECORD, "Current server access password");
-ConVar  cl_interpolate("cl_interpolate", "1.0", FCVAR_USERINFO | FCVAR_DEVELOPMENTONLY, "Interpolate entities on the client.");
+ConVar  cl_interpolate("cl_interpolate", "1.0", FCVAR_USERINFO | FCVAR_DEVELOPMENTONLY | FCVAR_NOT_CONNECTED, "Interpolate entities on the client.");
+ConVar  cl_clanid("cl_clanid", "0", FCVAR_ARCHIVE | FCVAR_USERINFO | FCVAR_HIDDEN, "Current clan ID for name decoration", CL_ClanIdChanged);
+ConVar  cl_show_connectionless_packet_warnings("cl_show_connectionless_packet_warnings", "0", FCVAR_NONE, "Show console messages about ignored connectionless packets on the client.");
 
 // ---------------------------------------------------------------------------------------- //
 // C_ServerClassInfo implementation.
@@ -225,16 +294,19 @@ CBaseClientState::CBaseClientState()
 	m_flConnectTime = 0;
 	m_nRetryNumber = 0;
 	m_szRetryAddress[0] = 0;
+	m_ulGameServerSteamID = 0;
+	m_retryChallenge = 0;
 	m_bRestrictServerCommands = true;
 	m_bRestrictClientCommands = true;
 	m_nServerCount = 0;
 	m_nCurrentSequence = 0;
 	m_nDeltaTick = 0;
 	m_bPaused = 0;
+	m_flPausedExpireTime = -1.f;
 	m_nViewEntity = 0;
 	m_nPlayerSlot = 0;
-	m_szLevelName[0] = 0;
-	m_szLevelNameShort[0] = 0;
+	m_szLevelFileName[0] = 0;
+	m_szLevelBaseName[0] = 0;
 	m_nMaxClients = 0;
 	Q_memset(m_pEntityBaselines, 0, sizeof(m_pEntityBaselines));
 	m_nServerClasses = 0;
@@ -258,8 +330,8 @@ void CBaseClientState::Clear(void)
 	m_nServerClasses = 0;
 	m_nServerClassBits = 0;
 	m_nPlayerSlot = 0;
-	m_szLevelName[0] = 0;
-	m_szLevelNameShort[0] = 0;
+	m_szLevelFileName[0] = 0;
+	m_szLevelBaseName[0] = 0;
 	m_nMaxClients = 0;
 
 	if (m_pServerClasses)
@@ -285,6 +357,7 @@ void CBaseClientState::Clear(void)
 		m_NetChannel->Reset();
 
 	m_bPaused = 0;
+	m_flPausedExpireTime = -1.f;
 	m_nViewEntity = 0;
 	m_nChallengeNr = 0;
 	m_flConnectTime = 0.0f;
@@ -300,16 +373,16 @@ void CBaseClientState::FileDenied(const char* fileName, unsigned int transferID)
 	ConMsg("CBaseClientState::FileDenied: %s.\n", fileName);
 }
 
-void CBaseClientState::FileSent(const char* fileName, unsigned int transferID)
-{
-	ConMsg("CBaseClientState::FileSent: %s.\n", fileName);
-}
-
 void CBaseClientState::FileRequested(const char* fileName, unsigned int transferID)
 {
 	ConMsg("File '%s' requested from %s.\n", fileName, m_NetChannel->GetAddress());
 
 	m_NetChannel->SendFile(fileName, transferID); // CBaseCLisntState always sends file
+}
+
+void CBaseClientState::FileSent(const char* fileName, unsigned int transferID)
+{
+	ConMsg("File '%s' sent.\n", fileName);
 }
 
 #define REGISTER_NET_MSG( name )				\
@@ -352,6 +425,8 @@ void CBaseClientState::ConnectionStart(INetChannel* chan)
 	REGISTER_SVC_MSG(Menu);
 	REGISTER_SVC_MSG(GameEventList);
 	REGISTER_SVC_MSG(GetCvarValue);
+	REGISTER_SVC_MSG(CmdKeyValues);
+	REGISTER_SVC_MSG(SetPauseTimed);
 }
 
 void CBaseClientState::ConnectionClosing(const char* reason)
@@ -389,11 +464,20 @@ bool CBaseClientState::SetSignonState(int state, int count)
 		return false;
 	}
 
-	if (IsX360() &&
-		(state == SIGNONSTATE_FULL) &&
-		g_pMatchmaking->PreventFullServerStartup())
+	if (state == SIGNONSTATE_FULL)
 	{
-		return true;
+#if defined( REPLAY_ENABLED ) && !defined( DEDICATED )
+		if (g_pClientReplayContext)
+		{
+			g_pClientReplayContext->OnSignonStateFull();
+		}
+#endif
+
+		if (IsX360() &&
+			g_pMatchmaking->PreventFullServerStartup())
+		{
+			return true;
+		}
 	}
 
 	m_nSignonState = state;
@@ -407,7 +491,7 @@ bool CBaseClientState::SetSignonState(int state, int count)
 //   response before the timeout, send another "connect" request.
 // Output : void CL_SendConnectPacket
 //-----------------------------------------------------------------------------
-void CBaseClientState::SendConnectPacket(int challengeNr, int authProtocol, int keySize, const char* encryptionKey, uint64 unGSSteamID, bool bGSSecure)
+void CBaseClientState::SendConnectPacket(int challengeNr, int authProtocol, uint64 unGSSteamID, bool bGSSecure)
 {
 	COM_TimestampedLog("SendConnectPacket");
 
@@ -420,7 +504,7 @@ void CBaseClientState::SendConnectPacket(int challengeNr, int authProtocol, int 
 	if (!NET_StringToAdr(szServerName, &adr))
 	{
 		ConMsg("Bad server address (%s)\n", szServerName);
-		Disconnect("bad fucking server address mate", true);
+		Disconnect("Bad server address", true);
 		// Host_Disconnect(); MOTODO
 		return;
 	}
@@ -430,7 +514,7 @@ void CBaseClientState::SendConnectPacket(int challengeNr, int authProtocol, int 
 		adr.SetPort(PORT_SERVER);
 	}
 
-	char		msg_buffer[MAX_ROUTABLE_PAYLOAD];
+	ALIGN4 char		msg_buffer[MAX_ROUTABLE_PAYLOAD] ALIGN4_POST;
 	bf_write	msg(msg_buffer, sizeof(msg_buffer));
 
 	msg.WriteLong(CONNECTIONLESS_HEADER);
@@ -438,8 +522,11 @@ void CBaseClientState::SendConnectPacket(int challengeNr, int authProtocol, int 
 	msg.WriteLong(PROTOCOL_VERSION);
 	msg.WriteLong(authProtocol);
 	msg.WriteLong(challengeNr);
+	msg.WriteLong(m_retryChallenge);
 	msg.WriteString(GetClientName());	// Name
 	msg.WriteString(password.GetString());		// password
+	msg.WriteString(GetSteamInfIDVersionInfo().szVersionString);	// product version
+//	msg.WriteByte( ( g_pServerPluginHandler->GetNumLoadedPlugins() > 0 ) ? 1 : 0 ); // have any client-side server plug-ins been loaded?
 
 	switch (authProtocol)
 	{
@@ -448,11 +535,11 @@ void CBaseClientState::SendConnectPacket(int challengeNr, int authProtocol, int 
 		msg.WriteString(CDKey);		// cdkey
 		break;
 
-	case PROTOCOL_STEAM:		if (!PrepareSteamConnectResponse(keySize, encryptionKey, unGSSteamID, bGSSecure, adr, msg))
+	case PROTOCOL_STEAM:		if (!PrepareSteamConnectResponse(unGSSteamID, bGSSecure, adr, msg))
 	{
 		return;
 	}
-    break;
+					   break;
 
 	default: 					Host_Error("Unexepected authentication protocol %i!\n", authProtocol);
 		return;
@@ -464,6 +551,9 @@ void CBaseClientState::SendConnectPacket(int challengeNr, int authProtocol, int 
 	// remember challengenr for TCP connection
 	m_nChallengeNr = challengeNr;
 
+	// Remember Steam ID, if any
+	m_ulGameServerSteamID = unGSSteamID;
+
 	// Send protocol and challenge value
 	NET_SendPacket(NULL, m_Socket, adr, msg.GetData(), msg.GetNumBytesWritten());
 }
@@ -472,7 +562,7 @@ void CBaseClientState::SendConnectPacket(int challengeNr, int authProtocol, int 
 //-----------------------------------------------------------------------------
 // Purpose: append steam specific data to a connection response
 //-----------------------------------------------------------------------------
-bool CBaseClientState::PrepareSteamConnectResponse(int keySize, const char* encryptionKey, uint64 unGSSteamID, bool bGSSecure, const netadr_t& adr, bf_write& msg)
+bool CBaseClientState::PrepareSteamConnectResponse(uint64 unGSSteamID, bool bGSSecure, const netadr_t& adr, bf_write& msg)
 {
 	// X360TBD: Network - Steam Dedicated Server hack
 	if (IsX360())
@@ -480,7 +570,7 @@ bool CBaseClientState::PrepareSteamConnectResponse(int keySize, const char* encr
 		return true;
 	}
 
-#ifndef NO_STEAM
+#if !defined( NO_STEAM ) && !defined( SWDS  ) 
 	if (!Steam3Client().SteamUser())
 	{
 		COM_ExplainDisconnection(true, "#GameUI_ServerRequireSteam");
@@ -496,7 +586,7 @@ bool CBaseClientState::PrepareSteamConnectResponse(int keySize, const char* encr
 	}
 
 #ifndef SWDS
-	/// now append the steam3 cookie
+	// now append the steam3 cookie
 	char steam3Cookie[STEAM_KEYSIZE];
 	uint32 steam3CookieLen = 0;
 
@@ -517,9 +607,29 @@ bool CBaseClientState::PrepareSteamConnectResponse(int keySize, const char* encr
 	return true;
 }
 
+// Tracks how we connected to the current server.
+static ConVar cl_connectmethod("cl_connectmethod", "", FCVAR_USERINFO | FCVAR_HIDDEN, "Method by which we connected to the current server.");
 
+/* static */ bool CBaseClientState::ConnectMethodAllowsRedirects()
+{
+	// Only HLTV should be allowed to redirect clients, but malicious servers can answer a connect
+	// attempt as HLTV and then redirect elsewhere. A somewhat-more complete fix for this would
+	// involve tracking our redirected status and refusing to interact with non-HLTV servers. For
+	// now, however, we just blacklist server browser / matchmaking connect methods from allowing
+	// redirects and allow it for other types.
+	const char* pConnectMethod = cl_connectmethod.GetString();
+	if (V_strcmp(pConnectMethod, "serverbrowser_internet") == 0 ||
+		V_strncmp(pConnectMethod, "quickpick", 9) == 0 ||
+		V_strncmp(pConnectMethod, "quickplay", 9) == 0 ||
+		V_strcmp(pConnectMethod, "matchmaking") == 0 ||
+		V_strcmp(pConnectMethod, "coaching") == 0)
+	{
+		return false;
+	}
+	return true;
+}
 
-void CBaseClientState::Connect(const char* adr)
+void CBaseClientState::Connect(const char* adr, const char* pszSourceTag)
 {
 #if !defined( NO_STEAM )
 	// Get our name from steam. Needs to be done before connecting
@@ -533,6 +643,10 @@ void CBaseClientState::Connect(const char* adr)
 
 
 	Q_strncpy(m_szRetryAddress, adr, sizeof(m_szRetryAddress));
+	m_retryChallenge = (RandomInt(0, 0x0FFF) << 16) | RandomInt(0, 0xFFFF);
+	m_ulGameServerSteamID = 0;
+	m_sRetrySourceTag = pszSourceTag;
+	cl_connectmethod.SetValue(m_sRetrySourceTag.String());
 
 	// For the check for resend timer to fire a connection / getchallenge request.
 	SetSignonState(SIGNONSTATE_CHALLENGE, -1);
@@ -591,10 +705,22 @@ void CBaseClientState::FullConnect(netadr_t& adr)
 #if !defined(SWDS)
 	RCONClient().SetAddress(m_NetChannel->GetRemoteAddress());
 #endif
+
+	// Fire an event when we get our connection
+	IGameEvent* event = g_GameEventManager.CreateEvent("client_connected");
+	if (event)
+	{
+		event->SetString("address", m_NetChannel->GetRemoteAddress().ToString(true));
+		event->SetInt("ip", m_NetChannel->GetRemoteAddress().GetIPNetworkByteOrder()); // <<< Network byte order?
+		event->SetInt("port", m_NetChannel->GetRemoteAddress().GetPort());
+		g_GameEventManager.FireEventClientSide(event);
+	}
+
 }
 
 void CBaseClientState::ConnectionCrashed(const char* reason)
 {
+	DebuggerBreakIfDebugging_StagingOnly();
 	ConMsg("Connection lost: %s.\n", reason ? reason : "unknown reason");
 	Disconnect(reason ? reason : "Connection crashed", true);
 }
@@ -603,7 +729,7 @@ void CBaseClientState::Disconnect(const char* pszReason, bool bShowMainMenu)
 {
 	m_flConnectTime = -FLT_MAX;
 	m_nRetryNumber = 0;
-	//m_ulGameServerSteamID = 0;
+	m_ulGameServerSteamID = 0;
 
 	if (m_nSignonState == SIGNONSTATE_NONE)
 		return;
@@ -644,6 +770,8 @@ void CBaseClientState::Disconnect(const char* pszReason, bool bShowMainMenu)
 void CBaseClientState::RunFrame(void)
 {
 	VPROF("CBaseClientState::RunFrame");
+	tmZone(TELEMETRY_LEVEL0, TMZF_NONE, "%s", __FUNCTION__);
+
 	if ((m_nSignonState > SIGNONSTATE_NEW) && m_NetChannel && g_GameEventManager.HasClientListenersChanged())
 	{
 		// assemble a list of all events we listening to and tell the server
@@ -711,11 +839,37 @@ void CBaseClientState::CheckForResend(void)
 			ConMsg("Retrying %s...\n", m_szRetryAddress);
 	}
 
+	// Fire an event when we attempt connection
+	if (m_nRetryNumber == 0)
+	{
+		IGameEvent* event = g_GameEventManager.CreateEvent("client_beginconnect");
+		if (event)
+		{
+			event->SetString("address", m_szRetryAddress);
+			event->SetInt("ip", adr.GetIPNetworkByteOrder()); // <<< Network byte order?
+			event->SetInt("port", adr.GetPort());
+			//event->SetInt(    "retry_number", m_nRetryNumber );
+			event->SetString("source", m_sRetrySourceTag);
+			g_GameEventManager.FireEventClientSide(event);
+		}
+	}
+
 	m_nRetryNumber++;
 
 	// Request another challenge value.
-	NET_OutOfBandPrintf(m_Socket, adr, "%c00000000000000", A2S_GETCHALLENGE);
+	{
+		ALIGN4 char		msg_buffer[MAX_ROUTABLE_PAYLOAD] ALIGN4_POST;
+		bf_write	msg(msg_buffer, sizeof(msg_buffer));
+
+		msg.WriteLong(CONNECTIONLESS_HEADER);
+		msg.WriteByte(A2S_GETCHALLENGE);
+		msg.WriteLong(m_retryChallenge);
+		msg.WriteString("0000000000"); // pad out
+		NET_SendPacket(NULL, m_Socket, adr, msg.GetData(), msg.GetNumBytesWritten());
+	}
 }
+
+#define C2C_MOD					'X' // Mod specific packet for DOTA2, not used by the OB engine
 
 bool CBaseClientState::ProcessConnectionlessPacket(netpacket_t* packet)
 {
@@ -727,16 +881,35 @@ bool CBaseClientState::ProcessConnectionlessPacket(netpacket_t* packet)
 
 	int c = msg.ReadByte();
 
+	// ignoring a specific packet that DOTA2 broadcasts
+	if (c == C2C_MOD)
+		return false;
+
 	char string[MAX_ROUTABLE_PAYLOAD];
 
-	// FIXME:  For some of these, we should confirm that the sender of 
-	// the message is what we think the server is...
+	netadr_t adrServerConnectingTo;
+	NET_StringToAdr(m_szRetryAddress, &adrServerConnectingTo);
+	if ((packet->from.GetType() != NA_LOOPBACK) && (packet->from.GetIPNetworkByteOrder() != adrServerConnectingTo.GetIPNetworkByteOrder()))
+	{
+		if (cl_show_connectionless_packet_warnings.GetBool())
+		{
+			ConDMsg("Discarding connectionless packet ( CL '%c' ) from %s.\n", c, packet->from.ToString());
+		}
+		return false;
+	}
 
 	switch (c)
 	{
 
 	case S2C_CONNECTION:	if (m_nSignonState == SIGNONSTATE_CHALLENGE)
 	{
+		int myChallenge = msg.ReadLong();
+		if (myChallenge != m_retryChallenge)
+		{
+			Msg("Server connection did not have the correct challenge, ignoring.\n");
+			return false;
+		}
+
 		// server accepted our connection request
 		FullConnect(packet->from);
 	}
@@ -746,22 +919,33 @@ bool CBaseClientState::ProcessConnectionlessPacket(netpacket_t* packet)
 							// Blow it off if we are not connected.
 		if (m_nSignonState == SIGNONSTATE_CHALLENGE)
 		{
-			char keyData[STEAM_KEYSIZE];
+			int magicVersion = msg.ReadLong();
+			if (magicVersion != S2C_MAGICVERSION)
+			{
+				COM_ExplainDisconnection(true, "#GameUI_ServerConnectOutOfDate");
+				Disconnect("#GameUI_ServerConnectOutOfDate", true);
+				return false;
+			}
+
 			int challenge = msg.ReadLong();
+			int myChallenge = msg.ReadLong();
+			if (myChallenge != m_retryChallenge)
+			{
+				Msg("Server challenge did not have the correct challenge, ignoring.\n");
+				return false;
+			}
+
 			int authprotocol = msg.ReadLong();
-			int keysize = 0;
 			uint64 unGSSteamID = 0;
 			bool bGSSecure = false;
 			if (authprotocol == PROTOCOL_STEAM)
 			{
-				keysize = msg.ReadShort();
-				if (keysize <= 0 || keysize > sizeof(keyData))
+				if (msg.ReadShort() != 0)
 				{
 					Msg("Invalid Steam key size.\n");
 					Disconnect("Invalid Steam key size", true);
 					return false;
 				}
-				msg.ReadBytes(keyData, keysize);
 				if (msg.GetNumBytesLeft() > sizeof(unGSSteamID))
 				{
 					if (!msg.ReadBytes(&unGSSteamID, sizeof(unGSSteamID)))
@@ -773,41 +957,42 @@ bool CBaseClientState::ProcessConnectionlessPacket(netpacket_t* packet)
 
 					bGSSecure = (msg.ReadByte() == 1);
 				}
+				// The host can disable access to secure servers if you load unsigned code (mods, plugins, hacks)
+				if (bGSSecure && !Host_IsSecureServerAllowed())
+				{
+					COM_ExplainDisconnection(true, "#GameUI_ServerInsecure");
+					Disconnect("#GameUI_ServerInsecure", true);
+					return false;
+				}
 			}
-			SendConnectPacket(challenge, authprotocol, keysize, keyData, unGSSteamID, bGSSecure);
+			SendConnectPacket(challenge, authprotocol, unGSSteamID, bGSSecure);
 		}
 		break;
 
-	case A2A_PRINT:			if (msg.ReadString(string, sizeof(string)))
-	{
-		ConMsg("%s\n", string);	// TODO disallow if not net_rmoetprint
-	}
-				  break;
-
 	case S2C_CONNREJECT:	if (m_nSignonState == SIGNONSTATE_CHALLENGE)  // Spoofed?
 	{
+		int myChallenge = msg.ReadLong();
+		if (myChallenge != m_retryChallenge)
+		{
+			Msg("Received connection rejection that didn't match my challenge, ignoring.\n");
+			return false;
+		}
+
 		msg.ReadString(string, sizeof(string));
 		// Force failure dialog to come up now.
-		COM_ExplainDisconnection(true, string);
+		COM_ExplainDisconnection(true, "%s", string);
 		Disconnect(string, true);
 		// Host_Disconnect();
 	}
 					   break;
 
-	case A2A_PING:			NET_OutOfBandPrintf(m_Socket, packet->from, "%c00000000000000", A2A_ACK);
-		break;
-
-	case A2A_ACK:			ConMsg("A2A_ACK from %s\n", packet->from.ToString());
-		break;
-
-	case A2A_CUSTOM:		break;	// TODO fire local game event
-
-
-
-	// Unknown?
+					   // Unknown?
 	default:
 		// Otherwise, don't do anything.
-		ConDMsg("Bad connectionless packet ( CL '%c') from %s.\n", c, packet->from.ToString());
+		if (cl_show_connectionless_packet_warnings.GetBool())
+		{
+			ConDMsg("Bad connectionless packet ( CL '%c' ) from %s.\n", c, packet->from.ToString());
+		}
 		return false;
 	}
 
@@ -846,12 +1031,6 @@ bool CBaseClientState::ProcessStringCmd(NET_StringCmd* msg)
 {
 	VPROF("ProcessStringCmd");
 
-	return InternalProcessStringCmd(msg, false);
-}
-
-
-bool CBaseClientState::InternalProcessStringCmd(NET_StringCmd* msg, bool bIsHLTV)
-{
 	// Don't restrict commands from the server in single player or if cl_restrict_stuffed_commands is 0.
 	if (!m_bRestrictServerCommands || sv.IsActive())
 	{
@@ -859,24 +1038,15 @@ bool CBaseClientState::InternalProcessStringCmd(NET_StringCmd* msg, bool bIsHLTV
 		return true;
 	}
 
-	CCommand args;
-	args.Tokenize(msg->m_szCommand);
-
-	if (args.ArgC() <= 0)
-		return true;
-
-	// HLTV servers may need to put us on a different server
-	// so HLTV is allowed to execute the connect command in any case.
-	if (bIsHLTV && Q_stricmp(args[0], "Connect") == 0)
+	// Check that we can add the two execution markers
+	if (!Cbuf_HasRoomForExecutionMarkers(2))
 	{
-		// We let HLTV servers move us to other ones.
-		Cbuf_AddText(msg->m_szCommand);
+		AssertMsg(false, "CBaseClientState::ProcessStringCmd called but there is no room for the execution markers. Ignoring command.");
 		return true;
 	}
 
 	// Run the command, but make sure the command parser knows to only execute commands marked with FCVAR_SERVER_CAN_EXECUTE.
 	Cbuf_AddTextWithMarkers(eCmdExecutionMarker_Enable_FCVAR_SERVER_CAN_EXECUTE, msg->m_szCommand, eCmdExecutionMarker_Disable_FCVAR_SERVER_CAN_EXECUTE);
-
 
 	return true;
 }
@@ -935,7 +1105,7 @@ bool CBaseClientState::ProcessPrint(SVC_Print* msg)
 {
 	VPROF("ProcessPrint");
 
-	ConMsg(msg->m_szText);
+	ConMsg("%s", msg->m_szText);
 	return true;
 }
 
@@ -994,6 +1164,15 @@ bool CBaseClientState::ProcessServerInfo(SVC_ServerInfo* msg)
 	if (!sv.IsActive() &&
 		!(m_NetChannel->IsLoopback() || m_NetChannel->IsNull()))
 	{
+		// if you are joing a remote server it MUST be multipler and have maxplayer set to more than 1
+		// this prevents a spoofed ServerInfo packet from making the client think its in singleplayer
+		// and turning off a bunch of security checks
+		if (m_nMaxClients <= 1)
+		{
+			ConMsg("Bad maxclients (%u) from server.\n", m_nMaxClients);
+			return false;
+		}
+
 		// reset server enforced cvars
 		g_pCVar->RevertFlaggedConVars(FCVAR_REPLICATED);
 
@@ -1028,11 +1207,10 @@ bool CBaseClientState::ProcessServerInfo(SVC_ServerInfo* msg)
 		return false;
 	}
 
-	Q_snprintf(m_szLevelName, sizeof(m_szLevelName), "maps/%s%s.bsp", msg->m_szMapName, GetPlatformExt());
-	Q_strncpy(m_szLevelNameShort, msg->m_szMapName, sizeof(m_szLevelNameShort));
+	Q_strncpy(m_szLevelBaseName, msg->m_szMapName, sizeof(m_szLevelBaseName));
 
 #if !defined(SWDS)
-	audiosourcecache->LevelInit(m_szLevelNameShort);
+	audiosourcecache->LevelInit(m_szLevelBaseName);
 #endif
 
 	ConVarRef skyname("sv_skyname");
@@ -1051,6 +1229,7 @@ bool CBaseClientState::ProcessServerInfo(SVC_ServerInfo* msg)
 	{
 		event->SetString("hostname", msg->m_szHostName);
 		event->SetString("address", m_NetChannel->GetRemoteAddress().ToString(true));
+		event->SetInt("ip", m_NetChannel->GetRemoteAddress().GetIPNetworkByteOrder()); // <<< Network byte order?
 		event->SetInt("port", m_NetChannel->GetRemoteAddress().GetPort());
 		event->SetString("game", msg->m_szGameDir);
 		event->SetString("mapname", msg->m_szMapName);
@@ -1058,9 +1237,16 @@ bool CBaseClientState::ProcessServerInfo(SVC_ServerInfo* msg)
 		event->SetInt("password", 0);				// TODO
 		event->SetString("os", va("%c", toupper(msg->m_cOS)));
 		event->SetInt("dedicated", msg->m_bIsDedicated ? 1 : 0);
+		if (m_ulGameServerSteamID != 0)
+		{
+			event->SetString("steamid", CSteamID(m_ulGameServerSteamID).Render());
+		}
 
 		g_GameEventManager.FireEventClientSide(event);
 	}
+
+	// Set default filename, but this is finalized by ClientState later, so it should not be depended on yet. See PrepareLevelResources call
+	Host_DefaultMapFileName(msg->m_szMapName, m_szLevelFileName, sizeof(m_szLevelFileName));
 
 	COM_TimestampedLog(" CBaseClient::ProcessServerInfo(done)");
 
@@ -1141,6 +1327,15 @@ bool CBaseClientState::ProcessSetPause(SVC_SetPause* msg)
 	return true;
 }
 
+bool CBaseClientState::ProcessSetPauseTimed(SVC_SetPauseTimed* msg)
+{
+	VPROF("ProcessSetPauseTimed");
+
+	m_bPaused = msg->m_bPaused;
+	m_flPausedExpireTime = msg->m_flExpireTime;
+	return true;
+}
+
 
 bool CBaseClientState::ProcessCreateStringTable(SVC_CreateStringTable* msg)
 {
@@ -1166,7 +1361,50 @@ bool CBaseClientState::ProcessCreateStringTable(SVC_CreateStringTable* msg)
 
 	HookClientStringTable(msg->m_szTableName);
 
-	table->ParseUpdate(msg->m_DataIn, msg->m_nNumEntries);
+	if (msg->m_bDataCompressed)
+	{
+		unsigned int msgUncompressedSize = msg->m_DataIn.ReadLong();
+		unsigned int msgCompressedSize = msg->m_DataIn.ReadLong();
+		unsigned int uncompressedSize = msgUncompressedSize;
+		/// XXX(JohnS): 11/08/2016 - The PAD_NUMBER() call below was overflowing on UINT32_MAX-3 values.  Enforcing
+		//              resource-usage limits at this level is a lost cause without a massive overhaul, but clamp these
+		//              to somewhat reasonable ranges to prevent overflows with less-audited code in the engine.
+		bool bSuccess = false;
+		if (msg->m_DataIn.TotalBytesAvailable() > 0 &&
+			msgCompressedSize <= (unsigned int)msg->m_DataIn.TotalBytesAvailable() &&
+			msgCompressedSize < UINT_MAX / 2 &&
+			msgUncompressedSize < UINT_MAX / 2)
+		{
+			// allocate buffer for uncompressed data, align to 4 bytes boundary
+			char* uncompressedBuffer = new char[PAD_NUMBER(msgUncompressedSize, 4)];
+			char* compressedBuffer = new char[PAD_NUMBER(msgCompressedSize, 4)];
+
+			msg->m_DataIn.ReadBits(compressedBuffer, msgCompressedSize * 8);
+
+			// uncompress data
+			bSuccess = COM_BufferToBufferDecompress(uncompressedBuffer, &uncompressedSize, compressedBuffer, msgCompressedSize);
+			bSuccess &= (uncompressedSize == msgUncompressedSize);
+
+			if (bSuccess)
+			{
+				bf_read data(uncompressedBuffer, uncompressedSize);
+				table->ParseUpdate(data, msg->m_nNumEntries);
+			}
+
+			delete[] uncompressedBuffer;
+			delete[] compressedBuffer;
+		}
+
+		if (!bSuccess)
+		{
+			Assert(false);
+			Warning("Malformed message in CBaseClientState::ProcessCreateStringTable\n");
+		}
+	}
+	else
+	{
+		table->ParseUpdate(msg->m_DataIn, msg->m_nNumEntries);
+	}
 
 #endif
 
@@ -1187,10 +1425,19 @@ bool CBaseClientState::ProcessUpdateStringTable(SVC_UpdateStringTable* msg)
 
 #ifndef SHARED_NET_STRING_TABLES
 
-	CNetworkStringTable* table = (CNetworkStringTable*)
-		m_StringTableContainer->GetTable(msg->m_nTableID);
+	//m_StringTableContainer is NULL on level transitions, Seems to be caused by a UpdateStringTable packet comming in before the ServerInfo packet
+	//  I'm not sure this is safe, but at least we won't crash. The realy odd thing is this can happen on the server as well.//tmauer
+	if (m_StringTableContainer != NULL)
+	{
+		CNetworkStringTable* table = (CNetworkStringTable*)
+			m_StringTableContainer->GetTable(msg->m_nTableID);
 
-	table->ParseUpdate(msg->m_DataIn, msg->m_nChangedEntries);
+		table->ParseUpdate(msg->m_DataIn, msg->m_nChangedEntries);
+	}
+	else
+	{
+		Warning("m_StringTableContainer is NULL in CBaseClientState::ProcessUpdateStringTable\n");
+	}
 
 #endif
 
@@ -1322,6 +1569,9 @@ void CBaseClientState::ReadPacketEntities(CEntityReadInfo& u)
 //-----------------------------------------------------------------------------
 ClientClass* CBaseClientState::FindClientClass(const char* pClassName)
 {
+	if (!pClassName)
+		return NULL;
+
 	for (ClientClass* pCur = ClientDLL_GetAllClasses(); pCur; pCur = pCur->m_pNext)
 	{
 		if (Q_stricmp(pCur->m_pNetworkName, pClassName) == 0)
@@ -1334,20 +1584,22 @@ ClientClass* CBaseClientState::FindClientClass(const char* pClassName)
 
 bool CBaseClientState::LinkClasses()
 {
-	// Verify that we have received info about all classes.
-	for (int i = 0; i < m_nServerClasses; i++)
-	{
-		if (!m_pServerClasses[i].m_DatatableName)
-		{
-			Host_EndGame(true, "CL_ParseClassInfo_EndClasses: class %d not initialized.\n", i);
-			return false;
-		}
-	}
+	//	// Verify that we have received info about all classes.
+	//	for ( int i=0; i < m_nServerClasses; i++ )
+	//	{
+	//		if ( !m_pServerClasses[i].m_DatatableName )
+	//		{
+	//			Host_EndGame(true, "CL_ParseClassInfo_EndClasses: class %d not initialized.\n", i);
+	//			return false;
+	//		}
+	//	}
 
-	// Match the server classes to the client classes.
+		// Match the server classes to the client classes.
 	for (int i = 0; i < m_nServerClasses; i++)
 	{
 		C_ServerClassInfo* pServerClass = &m_pServerClasses[i];
+		if (!pServerClass->m_DatatableName)
+			continue;
 
 		// (this can be null in which case we just use default behavior).
 		pServerClass->m_pClientClass = FindClientClass(pServerClass->m_ClassName);
@@ -1401,6 +1653,8 @@ void CBaseClientState::FreeEntityBaselines()
 
 void CBaseClientState::SetEntityBaseline(int iBaseline, ClientClass* pClientClass, int index, char* packedData, int length)
 {
+	VPROF("CBaseClientState::SetEntityBaseline");
+
 	Assert(index >= 0 && index < MAX_EDICTS);
 	Assert(pClientClass);
 	Assert((iBaseline == 0) || (iBaseline == 1));
@@ -1490,9 +1744,19 @@ bool CBaseClientState::GetClassBaseline(int iClass, void const** pData, int* pDa
 
 		pInfo->m_InstanceBaselineIndex = pBaselineTable->FindStringIndex(str);
 
+		if (pInfo->m_InstanceBaselineIndex == INVALID_STRING_INDEX)
+		{
+			for (int i = 0; i < pBaselineTable->GetNumStrings(); ++i)
+			{
+				DevMsg("%i: %s\n", i, pBaselineTable->GetString(i));
+			}
+
+			// Gets a callstack, whereas ErrorIfNot(), does not.
+			Assert(0);
+		}
 		ErrorIfNot(
 			pInfo->m_InstanceBaselineIndex != INVALID_STRING_INDEX,
-			("GetDynamicBaseline: FindStringIndex(%s) failed.", str)
+			("GetDynamicBaseline: FindStringIndex(%s-%s) failed.", str, pInfo->m_ClassName);
 		);
 	}
 	*pData = pBaselineTable->GetStringUserData(pInfo->m_InstanceBaselineIndex, pDatalen);
@@ -1566,6 +1830,28 @@ bool CBaseClientState::ProcessGetCvarValue(SVC_GetCvarValue* msg)
 	// Send back.
 	m_NetChannel->SendNetMsg(returnMsg);
 	return true;
+}
+
+// Returns dem file protocol version, or, if not playing a demo, just returns PROTOCOL_VERSION
+int CBaseClientState::GetDemoProtocolVersion() const
+{
+#ifndef SWDS												// why is demo play undefined? it shuold be fine on a dedicated server
+	if (demoplayer->IsPlayingBack())
+	{
+		return demoplayer->GetProtocolVersion();
+	}
+#endif
+	return PROTOCOL_VERSION;
+}
+
+bool CBaseClientState::ProcessCmdKeyValues(SVC_CmdKeyValues* msg)
+{
+	return true;
+}
+
+bool CBaseClientState::IsClientConnectionViaMatchMaking(void)
+{
+	return (V_strnistr(cl_connectmethod.GetString(), "quickplay", 9) || V_strnistr(cl_connectmethod.GetString(), "matchmaking", 11));
 }
 
 

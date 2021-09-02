@@ -1,4 +1,4 @@
-//========= Copyright © 1996-2005, Valve Corporation, All rights reserved. ============//
+//========= Copyright Valve Corporation, All rights reserved. ============//
 //
 // Purpose: 
 //
@@ -90,8 +90,6 @@ public: // INetMsgHandler interface:
 
 public: // IServerMessageHandlers
 
-	virtual int GetDemoProtocolVersion() const { return 36; };
-
 	PROCESS_NET_MESSAGE(Tick);
 	PROCESS_NET_MESSAGE(StringCmd);
 	PROCESS_NET_MESSAGE(SetConVar);
@@ -109,16 +107,21 @@ public: // IServerMessageHandlers
 	PROCESS_SVC_MESSAGE(Menu);
 	PROCESS_SVC_MESSAGE(GameEventList);
 	PROCESS_SVC_MESSAGE(GetCvarValue);
-	PROCESS_SVC_MESSAGE(CmdKeyValues) { return true; /*DUMMY*/ }
+	PROCESS_SVC_MESSAGE(CmdKeyValues);
+	PROCESS_SVC_MESSAGE(SetPauseTimed);
+
+	// Returns dem file protocol version, or, if not playing a demo, just returns PROTOCOL_VERSION
+	virtual int GetDemoProtocolVersion() const;
+
 public:
 	inline	bool IsActive(void) const { return m_nSignonState == SIGNONSTATE_FULL; };
 	inline	bool IsConnected(void) const { return m_nSignonState >= SIGNONSTATE_CONNECTED; };
 	virtual	void Clear(void);
 	virtual void FullConnect(netadr_t& adr); // a connection was established
-	virtual void Connect(const char* adr); // start a connection challenge
+	virtual void Connect(const char* adr, const char* pszSourceTag); // start a connection challenge
 	virtual bool SetSignonState(int state, int count);
 	virtual void Disconnect(const char* pszReason, bool bShowMainMenu);
-	virtual void SendConnectPacket(int challengeNr, int authProtocol, int keySize, const char* encryptionKey, uint64 unGSSteamID, bool bGSSecure);
+	virtual void SendConnectPacket(int challengeNr, int authProtocol, uint64 unGSSteamID, bool bGSSecure);
 	virtual const char* GetCDKeyHash() { return "123"; }
 	virtual void RunFrame(void);
 	virtual void CheckForResend(void);
@@ -160,12 +163,12 @@ public:
 	virtual void ReadPreserveEnt(CEntityReadInfo& u) = 0;
 	virtual void ReadDeletions(CEntityReadInfo& u) = 0;
 
-protected:
+	bool IsClientConnectionViaMatchMaking(void);
 
-	bool InternalProcessStringCmd(NET_StringCmd* msg, bool bIsHLTV);
+	static bool ConnectMethodAllowsRedirects(void);
 
 private:
-	bool PrepareSteamConnectResponse(int keySize, const char* encryptionKey, uint64 unGSSteamID, bool bGSSecure, const netadr_t& adr, bf_write& msg);
+	bool PrepareSteamConnectResponse(uint64 unGSSteamID, bool bGSSecure, const netadr_t& adr, bf_write& msg);
 
 public:
 	// Connection to server.			
@@ -175,6 +178,8 @@ public:
 	double			m_flConnectTime;	// If gap of connect_time to net_time > 3000, then resend connect packet
 	int				m_nRetryNumber;	// number of retry connection attemps
 	char			m_szRetryAddress[MAX_OSPATH];
+	CUtlString		m_sRetrySourceTag; // string that describes why we decided to connect to this server (empty for command line, "serverbrowser", "quickplay", etc)
+	int				m_retryChallenge; // challenge we sent to the server
 	int				m_nSignonState;    // see SIGNONSTATE_* definitions
 	double			m_flNextCmdTime; // When can we send the next command packet?
 	int				m_nServerCount;	// server identification for prespawns, must match the svs.spawncount which
@@ -182,18 +187,20 @@ public:
 									// we can now spend a fair amount of time sitting connected to the server
 									// but downloading models, sounds, etc.  So much time that it is possible that the
 									// server might change levels again and, if so, we need to know that.
+	uint64			m_ulGameServerSteamID; // Steam ID of the game server we are trying to connect to, or are connected to.  Zero if unknown
 	int			m_nCurrentSequence;	// this is the sequence number of the current incoming packet	
 
 	CClockDriftMgr m_ClockDriftMgr;
 
 	int			m_nDeltaTick;		//	last valid received snapshot (server) tick
 	bool		m_bPaused;			// send over by server
+	float		m_flPausedExpireTime;
 	int			m_nViewEntity;		// cl_entitites[cl.viewentity] == player point of view
 
 	int			m_nPlayerSlot;		// own player entity index-1. skips world. Add 1 to get cl_entitites index;
 
-	char		m_szLevelName[40];	// for display on solo scoreboard
-	char		m_szLevelNameShort[40]; // removes maps/ and .bsp extension
+	char		m_szLevelFileName[128];	// for display on solo scoreboard
+	char		m_szLevelBaseName[128]; // removes maps/ and .bsp extension
 
 	int			m_nMaxClients;		// max clients on server
 

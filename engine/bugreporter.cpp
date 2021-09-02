@@ -1236,7 +1236,7 @@ void CBugUIPanel::OnChooseArea(vgui::Panel *panel)
 		int area_index = m_pGameArea->GetActiveItem();
 		int c = m_pBugReporter->GetLevelCount(area_index);
 		int item = -1;
-		const char* currentLevel = cl.IsActive() ? cl.m_szLevelNameShort : "console";
+		const char* currentLevel = cl.IsActive() ? cl.m_szLevelFileName : "console";
 
 		m_pMapNumber->DeleteAllItems();
 
@@ -1394,7 +1394,7 @@ void CBugUIPanel::Activate()
 
 	{
 		int c = m_pMapNumber->GetItemCount();
-		const char* currentLevel = cl.IsActive() ? cl.m_szLevelNameShort : "console";
+		const char* currentLevel = cl.IsActive() ? cl.m_szLevelFileName : "console";
 		int item = -1;
 
 		for (int i = 0; i < c; i++)
@@ -1433,7 +1433,7 @@ void CBugUIPanel::Activate()
 		m_pPosition->SetText(va("%f %f %f", org.x, org.y, org.z));
 		m_pOrientation->SetText(va("%f %f %f", ang.x, ang.y, ang.z));
 
-		m_pLevelName->SetText(cl.m_szLevelNameShort);
+		m_pLevelName->SetText(cl.m_szLevelFileName);
 		m_pSaveGame->SetEnabled((cl.m_nMaxClients == 1) ? true : false);
 		m_pSaveBSP->SetEnabled(true);
 		m_pSaveVMF->SetEnabled(true);

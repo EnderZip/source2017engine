@@ -339,11 +339,14 @@ bool CClientState::ProcessServerInfo( SVC_ServerInfo *msg )
 	// is server a HLTV proxy ?
 	ishltv = msg->m_bIsHLTV;
 
-	// The CRC of the server map must match the CRC of the client map. or else
+#if defined( REPLAY_ENABLED )
+	// is server a replay proxy ?
+	isreplay = msg->m_bIsReplay;
+#endif
+
+	// The MD5 of the server map must match the MD5 of the client map. or else
 	//  the client is probably cheating.
-	serverCRC = msg->m_nMapCRC;
-	// The client side DLL CRC check.
-	serverClientSideDllCRC = msg->m_nClientCRC;
+	V_memcpy(serverMD5.bits, msg->m_nMapMD5.bits, MD5_DIGEST_LENGTH);
 
 	// Multiplayer game?
 	if (m_nMaxClients > 1)
@@ -468,7 +471,7 @@ bool CClientState::ProcessVoiceInit( SVC_VoiceInit *msg )
 	}
 	else
 	{
-		Voice_Init( msg->m_szVoiceCodec, msg->m_nQuality);
+		Voice_Init( msg->m_szVoiceCodec, msg->m_nSampleRate);
 	}
 #endif
 	return true;

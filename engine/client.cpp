@@ -845,7 +845,7 @@ void CClientState::SetModel( int tableIndex )
 	{
 		// The world model must match the LevelFileName -- it is the path we just checked the CRC for, and paths may differ
 		// from what the server is using based on what the gameDLL override does
-		name = m_szLevelName;
+		name = m_szLevelFileName;
 	}
 
 	CPrecacheItem *p = &model_precache[ tableIndex ];
@@ -1423,7 +1423,7 @@ void CClientState::StartUpdatingSteamResources()
 	Assert(m_nSignonState == SIGNONSTATE_NEW);
 
 	// make sure we have all the necessary resources locally before continuing
-	m_hWaitForResourcesHandle = g_pFileSystem->WaitForResources(m_szLevelName);
+	m_hWaitForResourcesHandle = g_pFileSystem->WaitForResources(m_szLevelFileName);
 	m_bUpdateSteamResources = false;
 	m_bShownSteamResourceUpdateProgress = false;
 	m_bDownloadResources = false;
@@ -1445,15 +1445,15 @@ void CClientState::CheckUpdatingSteamResources()
 	if (m_bUpdateSteamResources)
 	{
 		float flPrepareProgress = 0.f;
-		char szMutableLevelName[ sizeof( m_szLevelName ) ] = { 0 };
-		V_strncpy( szMutableLevelName, m_szLevelName, sizeof( szMutableLevelName ) );
+		char szMutableLevelName[ sizeof(m_szLevelFileName) ] = { 0 };
+		V_strncpy( szMutableLevelName, m_szLevelFileName, sizeof( szMutableLevelName ) );
 
 		// if the game .dll doesn't support this call assume everything is prepared
 		IServerGameDLL::ePrepareLevelResourcesResult eResult = IServerGameDLL::ePrepareLevelResources_Prepared;
 		if ( g_iServerGameDLLVersion >= 10 )
 		{
 			eResult = serverGameDLL->AsyncPrepareLevelResources( szMutableLevelName, sizeof( szMutableLevelName ),
-				m_szLevelName, sizeof( m_szLevelName ), &flPrepareProgress );
+				m_szLevelFileName, sizeof(m_szLevelFileName), &flPrepareProgress );
 		}
 
 		switch ( eResult )
@@ -1791,9 +1791,9 @@ void CClientState::FinishSignonState_New()
 	//CL_CheckForPureServerWhitelist();
 	
 	// Verify the map and player .mdl crc's now that we've finished downloading missing resources (maps etc)
-	if (!CL_CheckCRCs(m_szLevelName))
+	if (!CL_CheckCRCs(m_szLevelFileName))
 	{
-		Host_Error("Unabled to verify map %s\n", (m_szLevelName && m_szLevelName[0]) ? m_szLevelName : "unknown");
+		Host_Error("Unabled to verify map %s\n", (m_szLevelFileName && m_szLevelBaseName[0]) ? m_szLevelFileName : "unknown");
 		return;
 	}
 

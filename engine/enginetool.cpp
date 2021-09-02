@@ -380,7 +380,7 @@ const char *CEngineTool::GetCurrentMap()
 		return "";
 	}
 
-	return cl.m_szLevelName;
+	return cl.m_szLevelFileName;
 }
 
 void CEngineTool::ChangeToMap( const char *mapname )

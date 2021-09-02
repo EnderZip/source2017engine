@@ -233,7 +233,7 @@ static bool DecompressBZipToDisk( const char *outFilename, const char *srcFilena
 	bool bMapFile = false;
 	char szOutFilenameBase[MAX_PATH];
 	Q_FileBase( outFilename, szOutFilenameBase, sizeof( szOutFilenameBase ) );
-	const char *pszMapName = cl.m_szLevelName;
+	const char *pszMapName = cl.m_szLevelFileName;
 	if ( pszMapName && pszMapName[0] )
 	{
 		bMapFile = ( Q_stricmp( szOutFilenameBase, pszMapName ) == 0 );
@@ -1041,7 +1041,7 @@ int CL_CanUseHTTPDownload(void)
 {
 	if ( sv_downloadurl.GetString()[0] )
 	{
-		const char *serverMapName = va( "%s:%s", sv_downloadurl.GetString(), cl.m_szLevelName);
+		const char *serverMapName = va( "%s:%s", sv_downloadurl.GetString(), cl.m_szLevelFileName);
 		return !s_DownloadManager.HasMapBeenDownloadedFromServer( serverMapName );
 	}
 	return 0;
@@ -1051,7 +1051,7 @@ int CL_CanUseHTTPDownload(void)
 
 void CL_MarkMapAsUsingHTTPDownload(void)
 {
-	const char *serverMapName = va( "%s:%s", sv_downloadurl.GetString(), cl.m_szLevelName);
+	const char *serverMapName = va( "%s:%s", sv_downloadurl.GetString(), cl.m_szLevelFileName);
 	s_DownloadManager.MarkMapAsDownloadedFromServer( serverMapName );
 }
 

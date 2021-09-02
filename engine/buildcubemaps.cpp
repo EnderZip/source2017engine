@@ -963,10 +963,10 @@ void R_BuildCubemapSamples( int numIterations )
 		return;
 
 	// Make sure that the file is writable before building cubemaps.
-	Assert( g_pFileSystem->FileExists( cl.m_szLevelName, "GAME" ) );
-	if( !g_pFileSystem->IsFileWritable( cl.m_szLevelName, "GAME" ) )
+	Assert( g_pFileSystem->FileExists( cl.m_szLevelFileName, "GAME" ) );
+	if( !g_pFileSystem->IsFileWritable( cl.m_szLevelFileName, "GAME" ) )
 	{
-		Warning( "%s is not writable!!!  Check it out before running buildcubemaps.\n", cl.m_szLevelName );
+		Warning( "%s is not writable!!!  Check it out before running buildcubemaps.\n", cl.m_szLevelFileName);
 		return;
 	}
 
@@ -1011,11 +1011,11 @@ void R_BuildCubemapSamples( int numIterations )
 			return;
 
 		char matDir[MAX_PATH];
-		Q_snprintf( matDir, sizeof(matDir), "materials/maps/%s", cl.m_szLevelName );
+		Q_snprintf( matDir, sizeof(matDir), "materials/maps/%s", cl.m_szLevelFileName);
 		g_pFileSystem->CreateDirHierarchy( matDir, "DEFAULT_WRITE_PATH" );
 
 		char pTemp[MAX_PATH];
-		Q_snprintf( pTemp, sizeof(pTemp), "materialsrc/maps/%s", cl.m_szLevelName );
+		Q_snprintf( pTemp, sizeof(pTemp), "materialsrc/maps/%s", cl.m_szLevelFileName);
 
 		char pMaterialSrcDir[MAX_PATH];
 		GetModContentSubdirectory( pTemp, pMaterialSrcDir, sizeof(pMaterialSrcDir) );
@@ -1082,24 +1082,24 @@ void R_BuildCubemapSamples( int numIterations )
 
 		iBSPPack->SetHDRMode( g_pMaterialSystemHardwareConfig->GetHDRType() != HDR_TYPE_NONE );
 
-		iBSPPack->LoadBSPFile( g_pFileSystem, cl.m_szLevelName );
+		iBSPPack->LoadBSPFile( g_pFileSystem, cl.m_szLevelFileName);
 
 		// Cram the textures into the bsp.
-		Q_snprintf( matDir, sizeof(matDir), "materials/maps/%s", cl.m_szLevelName );
+		Q_snprintf( matDir, sizeof(matDir), "materials/maps/%s", cl.m_szLevelFileName);
 		for ( i=0 ; i < pWorldModel->brush.pShared->m_nCubemapSamples ; i++ )
 		{
 			mcubemapsample_t *pSample = &pWorldModel->brush.pShared->m_pCubemapSamples[i];
 			AddSampleToBSPFile( bSupportsHDR, pSample, matDir, iBSPPack );
 		}
-		Cubemap_CreateDefaultCubemap( cl.m_szLevelName, iBSPPack );
+		Cubemap_CreateDefaultCubemap( cl.m_szLevelFileName, iBSPPack );
 
 		// Resolve levelfilename to absolute to ensure we are writing the exact file we loaded and not preferentially to
 		// DEFAULT_WRITE_PATH
 		char szAbsFile[MAX_PATH] = { 0 };
-		g_pFullFileSystem->RelativePathToFullPath( cl.m_szLevelName, NULL, szAbsFile, sizeof( szAbsFile ) );
+		g_pFullFileSystem->RelativePathToFullPath( cl.m_szLevelFileName, NULL, szAbsFile, sizeof( szAbsFile ) );
 		if ( !*szAbsFile )
 		{
-			ConMsg( "Failed to resolve absolute path of map: %s\n", cl.m_szLevelName );
+			ConMsg( "Failed to resolve absolute path of map: %s\n", cl.m_szLevelFileName);
 			R_BuildCubemapSamples_PostBuild();
 			return;
 		}

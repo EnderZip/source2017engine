@@ -1214,7 +1214,7 @@ CON_COMMAND( pause, "Toggle the server pause state." )
 #ifndef SWDS
 	if ( !sv.IsDedicated() )
 	{
-		if ( !cl.m_szLevelName[ 0 ] )
+		if ( !cl.m_szLevelFileName[ 0 ] )
 			return;
 	}
 #endif
@@ -1242,7 +1242,7 @@ CON_COMMAND( pause, "Toggle the server pause state." )
 CON_COMMAND( setpause, "Set the pause state of the server." )
 {
 #ifndef SWDS
-	if ( !cl.m_szLevelName[ 0 ] )
+	if ( !cl.m_szLevelFileName[ 0 ] )
 		return;
 #endif
 
@@ -1262,7 +1262,7 @@ CON_COMMAND( setpause, "Set the pause state of the server." )
 CON_COMMAND( unpause, "Unpause the game." )
 {
 #ifndef SWDS
-	if ( !cl.m_szLevelName[ 0 ] )
+	if ( !cl.m_szLevelFileName[ 0 ] )
 		return;
 #endif
 
