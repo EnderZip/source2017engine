@@ -17,6 +17,7 @@
 #include "xbox/xbox_console.h"
 #endif
 
+#include "sys_dll.h"
 #include "curl/curl.h"
 
 // memdbgon must be the last include file in a .cpp file!!!
@@ -1299,7 +1300,7 @@ void CConPanel::PaintBackground()
 
 	int wide = GetWide();
 	char ver[ 100 ];
-	Q_snprintf(ver, sizeof( ver ), "Source Engine %i (build %d)", PROTOCOL_VERSION, build_number() );
+	Q_snprintf(ver, sizeof( ver ), "Sus Engine %i (build %d)", PROTOCOL_VERSION, build_number() );
 	wchar_t unicode[ 200 ];
 	g_pVGuiLocalize->ConvertANSIToUnicode( ver, unicode, sizeof( unicode ) );
 
