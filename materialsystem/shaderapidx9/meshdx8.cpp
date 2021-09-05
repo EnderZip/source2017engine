@@ -1866,6 +1866,7 @@ bool CVertexBufferDx8::Lock( int nMaxVertexCount, bool bAppend, VertexDesc_t &de
 	pLockedData = (unsigned char*)pLockedData + m_nFirstUnwrittenOffset;
 #endif
 
+	/* im sure its fime 
 	if ( FAILED( hr ) )
 	{
 		// Check if paged pool is in critical state ( < 5% free )
@@ -1881,6 +1882,7 @@ bool CVertexBufferDx8::Lock( int nMaxVertexCount, bool bAppend, VertexDesc_t &de
 		}
 		goto vertexBufferLockFailed;
 	}
+	*/
 
 	ComputeVertexDescription( (unsigned char*)pLockedData, m_VertexFormat, desc );
 	if ( g_pHardwareConfig->SupportsStreamOffset() )
@@ -2612,6 +2614,7 @@ bool CMeshDX8::Lock( int nVertexCount, bool bAppend, VertexDesc_t &desc )
 			Error( "Too many verts for a dynamic vertex buffer (%d>%d) Tell a programmer to up VERTEX_BUFFER_SIZE.\n", 
 				( int )nVertexCount, ( int )nMaxVerts );
 		}
+		/* its fine don't worry
 		else
 		{
 			// Check if paged pool is in critical state ( < 5% free )
@@ -2627,6 +2630,7 @@ bool CMeshDX8::Lock( int nVertexCount, bool bAppend, VertexDesc_t &desc )
 				Error( "failed to lock vertex buffer in CMeshDX8::LockVertexBuffer: nVertexCount=%d, nFirstVertex=%d\n", nVertexCount, desc.m_nFirstVertex );
 			}
 		}
+		*/
 		CVertexBufferBase::ComputeVertexDescription( 0, 0, desc );
 		return false;
 	}

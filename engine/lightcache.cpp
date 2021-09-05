@@ -2115,37 +2115,38 @@ static void BuildStaticLightingCacheLightStyleInfo( PropLightcache_t* pcache, co
 		}
 		// FIXME: Could do better here if we had access to the list of leaves that this
 		// static prop is in.  For now, we use the lighting origin.
-		if( pVis[ wl->cluster >> 3 ] & ( 1 << ( wl->cluster & 7 ) ) )
-		{
-			// Use the maximum illumination to cull out lights that are far away.
-			dworldlight_t tmpLight = *wl;
-			tmpLight.style = 0;
-			Vector dummyDirection;
-			float ratio = LightIntensityAndDirectionInBox( &tmpLight, NULL, pcache->m_LightingOrigin, mins, maxs, 
-				LIGHT_NO_OCCLUSION_CHECK | LIGHT_IGNORE_LIGHTSTYLE_VALUE, &dummyDirection );
-			// See if this light has any contribution on this cache entry.
-			if( ratio <= 0.0f )
+		//if( pVis[ wl->cluster >> 3 ] & ( 1 << ( wl->cluster & 7 ) ) )
+			if (pVis[wl->cluster >> 3] & (1 << (wl->cluster & 7)))
 			{
-				continue;
-			}
+				// Use the maximum illumination to cull out lights that are far away.
+				dworldlight_t tmpLight = *wl;
+				tmpLight.style = 0;
+				Vector dummyDirection;
+				float ratio = LightIntensityAndDirectionInBox(&tmpLight, NULL, pcache->m_LightingOrigin, mins, maxs,
+					LIGHT_NO_OCCLUSION_CHECK | LIGHT_IGNORE_LIGHTSTYLE_VALUE, &dummyDirection);
+				// See if this light has any contribution on this cache entry.
+				if (ratio <= 0.0f)
+				{
+					continue;
+				}
 
-			{
-			MEM_ALLOC_CREDIT();
-			pcache->m_LightStyleWorldLights.AddToTail( i );
-			}
+				{
+					MEM_ALLOC_CREDIT();
+					pcache->m_LightStyleWorldLights.AddToTail(i);
+				}
 
-			int byte = wl->style >> 3;
-			int bit = wl->style & 0x7;
-			pcache->m_pLightstyles[byte] |= ( 1 << bit );
-			if( d_lightstylenumframes[wl->style] <= 1 )
-			{
-				pcache->m_LightingFlags |= HACKLIGHTCACHEFLAGS_HASSWITCHABLELIGHTSTYLE;
+				int byte = wl->style >> 3;
+				int bit = wl->style & 0x7;
+				pcache->m_pLightstyles[byte] |= (1 << bit);
+				if (d_lightstylenumframes[wl->style] <= 1)
+				{
+					pcache->m_LightingFlags |= HACKLIGHTCACHEFLAGS_HASSWITCHABLELIGHTSTYLE;
+				}
+				else
+				{
+					pcache->m_LightingFlags |= HACKLIGHTCACHEFLAGS_HASNONSWITCHABLELIGHTSTYLE;
+				}
 			}
-			else
-			{
-				pcache->m_LightingFlags |= HACKLIGHTCACHEFLAGS_HASNONSWITCHABLELIGHTSTYLE;
-			}
-		}
 	}
 }
 

@@ -313,8 +313,8 @@ void R_DrawSkyBox( float zFar, int nDrawFlags /*= 0x3F*/  )
 		// Normals are reversed so looking at face dots to 1.0, looking away from is -1.0
 		// Reject backfacing surfaces on the inside of the cube to avoid binding their texture
 		// Assuming a 90 fov looking at face is 0 degrees, so reject at 107
-		if ( DotProduct( CurrentViewForward(), normal ) < -0.29289f )
-			continue;
+		//if ( DotProduct( CurrentViewForward(), normal ) < -0.29289f )
+		//	continue;
 
 		Vector positionArray[4];
 		Vector2D texCoordArray[4];

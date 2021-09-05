@@ -4990,10 +4990,10 @@ VertexFormat_t CShaderAPIDx8::ComputeVertexUsage( int num, StateSnapshot_t* pIds
 			int newSize = TexCoordSize( (TextureStage_t)j, fmt );
 			if ( ( texCoordSize[j] != newSize ) && ( newSize != 0 ) )
 			{
-				if ( texCoordSize[j] != 0 ) 
-				{
-					Warning("Encountered a material with two passes that use different texture coord sizes!\n");
-				}
+				//if ( texCoordSize[j] != 0 ) 
+				//{
+				//	Warning("Encountered a material with two passes that use different texture coord sizes!\n");
+				//}
 				if ( texCoordSize[j] < newSize )
 				{
 					texCoordSize[j] = newSize;

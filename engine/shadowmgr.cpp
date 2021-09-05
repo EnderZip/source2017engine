@@ -1470,51 +1470,51 @@ void CShadowMgr::ProjectShadow( ShadowHandle_t handle, const Vector &origin,
 	int nLeafCount, const int *pLeafList,
 	float maxHeight, float falloffOffset, float falloffAmount, const Vector &vecCasterOrigin )
 {
-	VPROF_BUDGET( "CShadowMgr::ProjectShadow", VPROF_BUDGETGROUP_SHADOW_RENDERING );
+	VPROF_BUDGET("CShadowMgr::ProjectShadow", VPROF_BUDGETGROUP_SHADOW_RENDERING);
 
 	// First, we need to remove the shadow from all surfaces it may
 	// currently be in; in other words we're invalidating the shadow surface cache
-	RemoveAllSurfacesFromShadow( handle );
-	RemoveAllModelsFromShadow( handle );
+	RemoveAllSurfacesFromShadow(handle);
+	RemoveAllModelsFromShadow(handle);
 
 	// Don't bother with this shadow if it's disabled
-	Shadow_t &shadow = m_Shadows[handle];
-	if ( shadow.m_Flags & SHADOW_DISABLED )
+	Shadow_t& shadow = m_Shadows[handle];
+	if (shadow.m_Flags & SHADOW_DISABLED)
 		return;
 
 	// Don't compute the surface cache if shadows are off..
-	if ( !r_shadows.GetInt() )
+	if (!r_shadows.GetInt())
 		return;
 
 	// Set the falloff coefficient
 	shadow.m_FalloffOffset = falloffOffset;
-	VectorCopy( projectionDir, shadow.m_ProjectionDir );
+	VectorCopy(projectionDir, shadow.m_ProjectionDir);
 
 	// We need to know about surfaces in leaves hit by the ray...
 	// We'd like to stop iterating as soon as the entire swept volume
 	// enters a solid leaf; that may be hard to determine. Instead,
 	// we should stop iterating when the ray center enters a solid leaf?
-	AssertFloatEquals( projectionDir.LengthSqr(), 1.0f, 1e-3 );
+	AssertFloatEquals(projectionDir.LengthSqr(), 1.0f, 1e-3);
 
 	// The maximum ray distance is equal to the distance it takes the
 	// falloff to get to 15%.
 	shadow.m_MaxDist = maxHeight; //sqrt( coeff / 0.10f ) + falloffOffset;
 	shadow.m_FalloffAmount = falloffAmount;
-	MatrixCopy( worldToShadow, shadow.m_WorldToShadow );
+	MatrixCopy(worldToShadow, shadow.m_WorldToShadow);
 
 	// Compute a rough bounding sphere for the ray
-	float flRadius = sqrt( size.x * size.x + size.y * size.y ) * 0.5f;
-	VectorMA( origin, 0.5f * maxHeight, projectionDir, shadow.m_vecSphereCenter );
+	float flRadius = sqrt(size.x * size.x + size.y * size.y) * 0.5f;
+	VectorMA(origin, 0.5f * maxHeight, projectionDir, shadow.m_vecSphereCenter);
 	shadow.m_flSphereRadius = 0.5f * maxHeight + flRadius;
 
 	Vector vecEndPoint;
-	Vector vecMins(	-flRadius, -flRadius, -flRadius );
-	Vector vecMaxs(	 flRadius,  flRadius,  flRadius );
-	VectorMA( origin, maxHeight, projectionDir, vecEndPoint );
-	shadow.m_Ray.Init( origin, vecEndPoint, vecMins, vecMaxs );
+	Vector vecMins(-flRadius, -flRadius, -flRadius);
+	Vector vecMaxs(flRadius, flRadius, flRadius);
+	VectorMA(origin, maxHeight, projectionDir, vecEndPoint);
+	shadow.m_Ray.Init(origin, vecEndPoint, vecMins, vecMaxs);
 
 	// No more work necessary if it hits no leaves
-	if ( nLeafCount == 0 )
+	if (nLeafCount == 0)
 		return;
 
 	// We're hijacking the surface vis frame to make sure we enumerate
@@ -1522,7 +1522,7 @@ void CShadowMgr::ProjectShadow( ShadowHandle_t handle, const Vector &origin,
 	++r_surfacevisframe;
 
 	// Clear out the displacement tags also
-	DispInfo_ClearAllTags( host_state.worldbrush->hDispInfos );
+	DispInfo_ClearAllTags(host_state.worldbrush->hDispInfos);
 
 	ShadowBuildInfo_t build;
 	build.m_Shadow = handle;
@@ -1530,13 +1530,13 @@ void CShadowMgr::ProjectShadow( ShadowHandle_t handle, const Vector &origin,
 	build.m_pVis = NULL;
 	build.m_vecSphereCenter = shadow.m_vecSphereCenter;
 	build.m_flSphereRadius = shadow.m_flSphereRadius;
-	VectorCopy( projectionDir, build.m_ProjectionDirection );
+	VectorCopy(projectionDir, build.m_ProjectionDirection);
 
 	// Enumerate leaves
-	for ( int i  = 0; i < nLeafCount; ++i )
+	for (int i = 0; i < nLeafCount; ++i)
 	{
 		// NOTE: Scope specifier eliminates virtual function call
-		CShadowMgr::EnumerateLeaf( pLeafList[i], (int)&build );
+		CShadowMgr::EnumerateLeaf(pLeafList[i], (intp)&build);
 	}
 }
 

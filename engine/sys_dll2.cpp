@@ -126,7 +126,7 @@ const SteamInfVersionInfo_t& GetSteamInfIDVersionInfo()
 
 int build_number( void )
 {
-	return GetSteamInfIDVersionInfo().ClientVersion;
+	return GetSteamInfIDVersionInfo().AppID;
 }
 
 //-----------------------------------------------------------------------------

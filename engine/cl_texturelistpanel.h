@@ -1,4 +1,4 @@
-//========= Copyright Valve Corporation, All rights reserved. ============//
+//========= Copyright © 1996-2005, Valve Corporation, All rights reserved. ============//
 //
 // Purpose: 
 //
@@ -11,7 +11,10 @@
 #endif
 
 
-void CL_CreateTextureListPanel( vgui::Panel *pPanel );
+class vgui::Panel;
+
+
+void CL_CreateTextureListPanel(vgui::Panel* pPanel);
 
 void VGui_UpdateTextureListPanel();
 

@@ -53,8 +53,8 @@ ConVar engine_no_focus_sleep( "engine_no_focus_sleep", "50", FCVAR_ARCHIVE );
 // sleep time when not focus
 #define NOT_FOCUS_SLEEP	50				
 
-#define DEFAULT_FPS_MAX	300
-#define DEFAULT_FPS_MAX_S "300"
+#define DEFAULT_FPS_MAX	999
+#define DEFAULT_FPS_MAX_S "999"
 static int s_nDesiredFPSMax = DEFAULT_FPS_MAX;
 static bool s_bFPSMaxDrivenByPowerSavings = false;
 
