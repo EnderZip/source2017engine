@@ -2547,6 +2547,6 @@ void CBaseServer::SetPausedForced(bool bPaused, float flDuration /*= -1.f*/)
 	m_State = (bPaused) ? ss_paused : ss_active;
 	m_flPausedTimeEnd = (bPaused && flDuration > 0.f) ? Sys_FloatTime() + flDuration : -1.f;
 
-	SVC_SetPauseTimed setpause(bPaused, m_flPausedTimeEnd);
-	BroadcastMessage(setpause);
+	//SVC_SetPauseTimed setpause(bPaused, m_flPausedTimeEnd);
+	//BroadcastMessage(setpause);
 }

@@ -1110,29 +1110,6 @@ const char* SVC_SetPause::ToString(void) const
 	return s_text;
 }
 
-bool SVC_SetPauseTimed::WriteToBuffer(bf_write& buffer)
-{
-	buffer.WriteUBitLong(GetType(), NETMSG_TYPE_BITS);
-	buffer.WriteOneBit(m_bPaused ? 1 : 0);
-	buffer.WriteFloat(m_flExpireTime);
-	return !buffer.IsOverflowed();
-}
-
-bool SVC_SetPauseTimed::ReadFromBuffer(bf_read& buffer)
-{
-	VPROF("SVC_SetPauseTimed::ReadFromBuffer");
-
-	m_bPaused = buffer.ReadOneBit() != 0;
-	m_flExpireTime = buffer.ReadFloat();
-	return !buffer.IsOverflowed();
-}
-
-const char* SVC_SetPauseTimed::ToString(void) const
-{
-	Q_snprintf(s_text, sizeof(s_text), "%s: %s", GetName(), m_bPaused ? "paused" : "unpaused");
-	return s_text;
-}
-
 bool NET_SetConVar::WriteToBuffer(bf_write& buffer)
 {
 	buffer.WriteUBitLong(GetType(), NETMSG_TYPE_BITS);

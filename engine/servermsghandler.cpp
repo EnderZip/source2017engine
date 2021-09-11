@@ -455,12 +455,12 @@ bool CClientState::ProcessSetPause(SVC_SetPause* msg)
 	return true;
 }
 
-bool CClientState::ProcessSetPauseTimed(SVC_SetPauseTimed* msg)
+/*bool CClientState::ProcessSetPauseTimed(SVC_SetPauseTimed* msg)
 {
 	CBaseClientState::ProcessSetPauseTimed(msg);
 
 	return true;
-}
+}*/
 
 bool CClientState::ProcessVoiceInit(SVC_VoiceInit* msg)
 {

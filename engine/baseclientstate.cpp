@@ -426,7 +426,7 @@ void CBaseClientState::ConnectionStart(INetChannel* chan)
 	REGISTER_SVC_MSG(GameEventList);
 	REGISTER_SVC_MSG(GetCvarValue);
 	REGISTER_SVC_MSG(CmdKeyValues);
-	REGISTER_SVC_MSG(SetPauseTimed);
+//	REGISTER_SVC_MSG(SetPauseTimed);
 }
 
 void CBaseClientState::ConnectionClosing(const char* reason)
@@ -1327,14 +1327,14 @@ bool CBaseClientState::ProcessSetPause(SVC_SetPause* msg)
 	return true;
 }
 
-bool CBaseClientState::ProcessSetPauseTimed(SVC_SetPauseTimed* msg)
-{
-	VPROF("ProcessSetPauseTimed");
-
-	m_bPaused = msg->m_bPaused;
-	m_flPausedExpireTime = msg->m_flExpireTime;
-	return true;
-}
+//bool CBaseClientState::ProcessSetPauseTimed(SVC_SetPauseTimed* msg)
+//{
+//	VPROF("ProcessSetPauseTimed");
+//
+//	m_bPaused = msg->m_bPaused;
+//	m_flPausedExpireTime = msg->m_flExpireTime;
+//	return true;
+//}
 
 
 bool CBaseClientState::ProcessCreateStringTable(SVC_CreateStringTable* msg)

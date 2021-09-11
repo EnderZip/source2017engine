@@ -7,7 +7,7 @@
 //===========================================================================//
 #define DISABLE_PROTECTED_THINGS
 #include "locald3dtypes.h"
-
+#include <iostream>
 #include "shaderdevicedx8.h"
 #include "shaderapi/ishaderutil.h"
 #include "shaderapidx8_global.h"
@@ -133,6 +133,7 @@ CShaderDeviceMgrDx8::~CShaderDeviceMgrDx8()
 #ifdef OSX
 #include <Carbon/Carbon.h>
 #endif
+
 //-----------------------------------------------------------------------------
 // Connect, disconnect
 //-----------------------------------------------------------------------------
@@ -2815,7 +2816,7 @@ void CShaderDeviceDx8::CheckDeviceLost( bool bOtherAppInitializing )
 	// we do *not* allocate buffers as large as the entire current video mode
 	// which we're not doing
 #ifdef _WIN32
-	m_bIsMinimized = ( static_cast<BOOL>(IsIconic( ( HWND )m_hWnd )) == (BOOL)TRUE );
+	m_bIsMinimized = ( static_cast<BOOL>(IsIconic( (VD3DHWND)m_hWnd )) == (BOOL)TRUE );
 #else
 	m_bIsMinimized = ( IsIconic( (VD3DHWND)m_hWnd ) == TRUE );
 #endif
@@ -3393,7 +3394,7 @@ void CShaderDeviceDx8::Present()
 
 	// If we're not iconified, try to present (without this check, we can flicker when Alt-Tabbed away)
 #ifdef _WIN32
-	if ( IsX360() || (IsIconic( ( HWND )m_hWnd ) == 0 && bValidPresent) )
+	if ( IsX360() || (IsIconic( (VD3DHWND)m_hWnd ) == 0 && bValidPresent) )
 #else
 	if ( IsX360() || (IsIconic( (VD3DHWND)m_hWnd ) == 0 && bValidPresent) )
 #endif

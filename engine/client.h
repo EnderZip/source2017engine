@@ -129,7 +129,7 @@ public: // IServerMessageHandlers
 	PROCESS_SVC_MESSAGE(PacketEntities);
 	PROCESS_SVC_MESSAGE(TempEntities);
 	PROCESS_SVC_MESSAGE(Prefetch);
-	PROCESS_SVC_MESSAGE(SetPauseTimed);
+//	PROCESS_SVC_MESSAGE(SetPauseTimed);
 
 public:
 

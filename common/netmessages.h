@@ -471,19 +471,6 @@ public:
 };
 
 
-class SVC_SetPauseTimed : public CNetMessage
-{
-	DECLARE_SVC_MESSAGE(SetPauseTimed);
-
-	SVC_SetPauseTimed() {}
-	SVC_SetPauseTimed(bool bState, float flExpireTime = -1.f) { m_bPaused = bState; m_flExpireTime = flExpireTime; }
-
-public:
-	bool		m_bPaused;
-	float		m_flExpireTime;
-};
-
-
 class CNetworkStringTable;
 
 class SVC_CreateStringTable : public CNetMessage

@@ -435,6 +435,7 @@ demoheader_t *CDemoFile::ReadDemoHeader()
 
 	if ( !bOk )
 		return NULL;  // reading failed
+	
 
 	if ( Q_strcmp( m_DemoHeader.demofilestamp, DEMO_HEADER_ID ) )
 	{

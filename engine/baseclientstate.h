@@ -108,7 +108,7 @@ public: // IServerMessageHandlers
 	PROCESS_SVC_MESSAGE(GameEventList);
 	PROCESS_SVC_MESSAGE(GetCvarValue);
 	PROCESS_SVC_MESSAGE(CmdKeyValues);
-	PROCESS_SVC_MESSAGE(SetPauseTimed);
+//	PROCESS_SVC_MESSAGE(SetPauseTimed);
 
 	// Returns dem file protocol version, or, if not playing a demo, just returns PROTOCOL_VERSION
 	virtual int GetDemoProtocolVersion() const;

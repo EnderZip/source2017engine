@@ -13,7 +13,6 @@ $Project "captioncompiler"
 	"utils\captioncompiler\captioncompiler.vpc" [$WIN32]
 }
 
-
 $Project "client"
 {
 	"game\client\client_hl2mp.vpc"		[($WIN32||$POSIX) && $HL2MP]
@@ -62,6 +61,11 @@ $Project "mathlib"
 $Project "motionmapper"
 {
 	"utils\motionmapper\motionmapper.vpc" [$WIN32]
+}
+
+$Project "togl"
+{
+	"togl\togl.vpc" [$WIN32]
 }
 
 $Project "phonemeextractor"
