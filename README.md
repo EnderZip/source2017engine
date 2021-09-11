@@ -2,7 +2,7 @@
 TF2's engine ported to SDK2013MP
 
 # Does it works?
-It does...until you try to load a map
+Everything is working so far...
 
 # How to build?
 1. Run createengineprojects.bat
